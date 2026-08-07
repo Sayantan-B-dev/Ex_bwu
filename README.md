@@ -27,4 +27,6 @@ Login at `/admin` (link in the footer - "Master Login") with the admin seeded in
 ## Public pages
 
 - `/` - module cards (ready/soon, editable from the dashboard)
-- `/modules/[module]` - weekly print plans: page chips, Open Full PDF, Download Printing Pages (server-side merge at `/api/weeks/[id]/print-merge`), DOCX downloads
+- `/modules/[module]` - weekly print plans: page chips, Open Full PDF (proxied with correct filename at `/api/weeks/[id]/full-pdf`), Download Printing Pages (server-side merge at `/api/weeks/[id]/print-merge`), DOCX downloads
+
+All pages show loading spinners during route transitions. All admin buttons show inline spinners while processing. Toast notifications confirm every action.

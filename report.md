@@ -51,6 +51,8 @@
 | F19 | DOCX proxy + print-merge API (Cloudinary fix) | Done |
 | F20 | Filename parser (WeekN_(print pages)_Title) | Done |
 | F21 | Idempotent re-split (clearPageFiles first) | Done |
+| F22 | Full PDF proxy route (correct filename) | Done |
+| F23 | Page transition loading spinners (loading.tsx) | Done |
 
 ---
 
@@ -107,6 +109,7 @@ RPC: `check_admin(candidate, pin) -> boolean` (search_path: extensions, public, 
 |-------|--------|-------------|
 | `/api/weeks/[id]/print-merge` | GET | Merge print pages into single PDF |
 | `/api/weeks/[id]/docx` | GET | Proxy DOCX download with correct filename |
+| `/api/weeks/[id]/full-pdf` | GET | Proxy full PDF download with correct filename |
 
 ---
 
@@ -116,15 +119,19 @@ RPC: `check_admin(candidate, pin) -> boolean` (search_path: extensions, public, 
 app/
   layout.tsx              # Root layout + ToastProvider
   page.tsx                # Module listing
-  globals.css             # Full stylesheet (1300+ lines)
+  loading.tsx             # Route transition spinner
+  globals.css             # Full stylesheet (1350+ lines)
   modules/[module]/
     page.tsx              # Week cards
+    loading.tsx           # Route transition spinner
   admin/
     page.tsx              # Dashboard
     login/page.tsx        # Login form
+    loading.tsx           # Route transition spinner
   api/weeks/[id]/
     print-merge/route.ts  # PDF merge endpoint
     docx/route.ts         # DOCX proxy
+    full-pdf/route.ts     # Full PDF proxy (correct filename)
 
 components/
   PrintPlan.tsx           # Public week cards
@@ -182,71 +189,33 @@ report.md                # This file
 - Idempotent re-split (no duplicates)
 - Fixed download filename (Week{N}_{Title}_Printing.pdf)
 - Removed full-page spinner overlay
+- Added /api/weeks/[id]/full-pdf proxy (correct PDF filenames)
+- Added loading.tsx for route transitions (home, module, admin)
+- Restored @keyframes spin (accidentally removed)
+- Toast mobile overflow fix
+- proxy.ts: throw on missing secret
+- Removed admin PIN from reports
 
 ---
 
-## Commit Plan
+## Commits
 
-All work is uncommitted. Recommended commit sequence:
+All work committed and pushed to `origin/main`.
 
-### Commit 1: Foundation
 ```
-feat: Next.js 16 app with Supabase + Cloudinary backend
-
-- App Router, TypeScript, Turbopack
-- Supabase PostgreSQL schema (modules, weeks, files, admins)
-- Cloudinary PDF/DOCX storage
-- Admin auth (jose JWT, PIN login via RPC)
-- Public module listing + week cards
-- Admin dashboard with upload/split/re-split/DOCX/title/date/delete
-- PDF merge + DOCX proxy API routes
-- Neumorphic dark UI
+294cdae fix: full PDF filename + page loading spinners + keyframes
+2fc581d chore: test and helper scripts
+ac47289 docs: schema, reports, README
+7ab7e2b feat: toast notifications + loading spinners + neumorphic UI
+3e769a9 feat: API routes (print-merge + docx proxy)
+b8c162c feat: public module pages + week cards
+65ed90f feat: admin auth + dashboard + server actions
+6e70e5a feat: core lib layer (Supabase, Cloudinary, session, types)
+353a56b feat: Next.js 16 scaffold with Supabase + Cloudinary
+86f808c chore: remove legacy 3rdSemProjects, update gitignore
+42a034c fix docx downloads, filename fallback, drop obsolete weeks.json from split.js
+3c2f336 first commit
 ```
-**Files:** `app/`, `components/`, `lib/`, `proxy.ts`, `next.config.ts`, `tsconfig.json`, `eslint.config.mjs`, `package.json`, `supabase.md`, `.env.example`, `.gitignore`
-
-### Commit 2: DB fixes + Cloudinary setup
-```
-fix: Supabase RPC search_path + drop files constraint
-
-- check_admin: set search_path to extensions, public, pgcryptogc
-- Drop unique (week_id, kind) on files table
-- Add done_on date column to weeks
-- SQL migration in supabase.md
-```
-**Files:** `supabase.md`
-
-### Commit 3: UI polish
-```
-fix: admin action-rows, DOCX dropdown, responsive CSS
-
-- Restructured admin week actions into meta-row/danger-row
-- Fixed DOCX dropdown close behavior (.closest)
-- Added responsive breakpoints for action rows
-- Public date read-only chip
-- FileField component for styled file inputs
-```
-**Files:** `components/AdminDashboard.tsx`, `components/PrintPlan.tsx`, `app/globals.css`
-
-### Commit 4: Loading + Toasts
-```
-feat: loading spinners + toast notifications
-
-- Inline loading spinners on all action buttons
-- ToastProvider context with auto-dismiss
-- Toast wired to all actions (download, split, upload, docx, title, date, delete)
-- Idempotent re-split (clearPageFiles in splitWeekCore)
-- Fixed print-merge filename: Week{N}_{Title}_Printing.pdf
-```
-**Files:** `components/ToastProvider.tsx`, `components/AdminDashboard.tsx`, `components/PrintPlan.tsx`, `app/layout.tsx`, `app/globals.css`
-
-### Commit 5: Cleanup (optional)
-```
-chore: remove unused files + test scripts
-
-- Delete components/WeekDatePicker.tsx (unused)
-- Clean up scripts/ directory
-```
-**Files:** `components/WeekDatePicker.tsx`, `scripts/*`
 
 ---
 

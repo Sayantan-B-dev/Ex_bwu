@@ -145,6 +145,18 @@
       "name": "Idempotent re-split",
       "description": "splitWeekCore calls clearPageFiles at the start, making re-split safe against duplicates and concurrent calls.",
       "files": ["lib/actions.ts"]
+    },
+    {
+      "id": "F22",
+      "name": "Full PDF proxy route",
+      "description": "Proxies full PDF download from Cloudinary with correct Content-Disposition filename (e.g. Week1_Lab_1.pdf instead of report.pdf).",
+      "files": ["app/api/weeks/[id]/full-pdf/route.ts", "components/PrintPlan.tsx"]
+    },
+    {
+      "id": "F23",
+      "name": "Page transition loading spinners",
+      "description": "loading.tsx files for route transitions (home, module, admin). Shows spinner during server component data fetching.",
+      "files": ["app/loading.tsx", "app/modules/[module]/loading.tsx", "app/admin/loading.tsx", "app/globals.css"]
     }
   ],
   "database": {
@@ -190,6 +202,12 @@
       "path": "/api/weeks/[id]/docx",
       "method": "GET",
       "description": "Proxies DOCX download from Cloudinary with correct Content-Disposition filename.",
+      "auth": "none (public)"
+    },
+    {
+      "path": "/api/weeks/[id]/full-pdf",
+      "method": "GET",
+      "description": "Proxies full PDF download from Cloudinary with correct Content-Disposition filename.",
       "auth": "none (public)"
     }
   ],
@@ -295,7 +313,14 @@
         "Toast wired to: download, split, re-split, upload, docx, title, date, delete",
         "ToastProvider added to root layout",
         "Removed full-page spinner overlay (button-only loading)",
-        "Fixed print-merge download filename: Week{UUID} -> Week{N}_{Title}_Printing.pdf"
+        "Fixed print-merge download filename: Week{UUID} -> Week{N}_{Title}_Printing.pdf",
+        "Added /api/weeks/[id]/full-pdf proxy route for correct PDF filenames",
+        "Added loading.tsx for route transitions (home, module, admin)",
+        "Restored @keyframes spin (accidentally removed with overlay CSS)",
+        "Added .page-spinner CSS for route transition loading",
+        "Toast overflow fix: wraps on screens < 480px",
+        "proxy.ts: throw on missing ADMIN_SESSION_SECRET (was silent fallback)",
+        "Removed admin PIN from report.json and report.md"
       ]
     }
   ],
@@ -336,10 +361,10 @@
     "table": "admins"
   },
   "git": {
-    "commits": 2,
-    "local_only": true,
-    "no_remote": true,
-    "uncommitted": "All work from phases 1-4 on disk only"
+    "commits": 12,
+    "remote": "https://github.com/Sayantan-B-dev/Ex_bwu.git",
+    "branch": "main",
+    "status": "pushed"
   },
   "notes": [
     "Next.js 16 deprecation: middleware.ts renamed to proxy.ts with named export 'proxy'",
