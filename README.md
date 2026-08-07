@@ -1,32 +1,30 @@
 # SM_BtechSyllabus · 3rd Semester Modules
 
-Next.js (App Router, TypeScript) version of the static modules site — same neumorphic dark UI, same features.
+Next.js (App Router, TypeScript) modules site with an admin dashboard. Same neumorphic dark UI.
 
-## Run
+## Stack
 
-```bash
-npm install
-npm run dev      # http://localhost:3000
-```
+- **Frontend** - Next.js on Vercel (server components + server actions)
+- **Data** - Supabase (Postgres: modules, weeks, files, admins) with RLS (public read-only)
+- **Files** - Cloudinary (raw PDF/DOCX) - full PDFs, DOCX, single page-PDFs
+- **Admin** - tiny name+PIN login (`/admin`), session cookie signed with `ADMIN_SESSION_SECRET`
 
-## Content: drop files, the app manages the rest
+## Setup
 
-The app auto-discovers weeks from `3rdSemProjects/PYTHON/` on every request — no data files to edit.
+1. Run the SQL in `supabase.md` (Supabase SQL editor) - tables, RLS, `check_admin` RPC, seeds.
+2. Copy `.env.example` → `.env.local` and fill: Supabase URL/anon/service-role keys, Cloudinary credentials, `ADMIN_SESSION_SECRET`.
+3. `npm run dev` → http://localhost:3000
 
-| You drop in | App shows |
-|---|---|
-| `3rdSemProjects/PYTHON/pdfs/Week5_*.pdf` | New week card + Open Full PDF |
-| `3rdSemProjects/PYTHON/pdfs/split/Week5/print/page-01.pdf` (+ `handwrite/`) | Page chips + Download Printing Pages |
-| `3rdSemProjects/PYTHON/docx/weekly/Week5_*.docx` | DOCX download menu |
+## Using the dashboard
 
-Generate the split pages with the existing script:
+Login at `/admin` (link in the footer - "Master Login") with the admin seeded in `supabase.md` (default: `sayantan` + your PIN).
 
-```bash
-cd 3rdSemProjects/PYTHON/pdfs && node split.js
-```
+**Uploading a week** (per module):
+- Filename must be `Week5_(print 1,3,5,7 pages)_Your_Title.pdf` - the numbers in brackets are the pages to print. If nothing is printed: `Week5_(print no pages)_Your_Title.pdf`.
+- "Upload & Auto-Split" saves the PDF to Cloudinary, records metadata in Supabase, reads the page count with pdf-lib, and splits every page into its own PDF (print/handwrite folders) - all automatically.
+- DOCX is uploaded separately per week (download-only on the public page).
 
-## Routes
+## Public pages
 
-- `/` — module landing page
-- `/modules/python` — weekly reports print plan
-- `/api/files/[...path]` — streams PDF/DOCX from `3rdSemProjects/` (inline for PDF, attachment for DOCX)
+- `/` - module cards (ready/soon, editable from the dashboard)
+- `/modules/[module]` - weekly print plans: page chips, Open Full PDF, Download Printing Pages (server-side merge at `/api/weeks/[id]/print-merge`), DOCX downloads

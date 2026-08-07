@@ -1,0 +1,352 @@
+{
+  "project": {
+    "name": "SM_BtechSyllabus - BWU",
+    "description": "BTech 3rd semester lab report management system with admin dashboard, PDF splitting, and public module pages.",
+    "version": "0.1.0",
+    "repository": "https://github.com/Sayantan-B-dev/SM_BtechSyllabus",
+    "startDate": "2025-07-14",
+    "lastUpdated": "2026-08-07"
+  },
+  "stack": {
+    "framework": "Next.js 16.3.0 (App Router, Turbopack)",
+    "runtime": "React 19.2.8",
+    "language": "TypeScript 5",
+    "backend": "Supabase (PostgreSQL + Auth + RPC)",
+    "storage": "Cloudinary (PDF + DOCX hosting)",
+    "auth": "Custom session (jose JWT, PIN-based admin login)",
+    "pdf": "pdf-lib 1.17.1 (server-side split + merge)",
+    "pdfRender": "puppeteer-core 25.5.0 (dev dependency, E2E testing)",
+    "styling": "Neumorphic dark UI, pure CSS (no framework)",
+    "deployment": "Vercel-ready"
+  },
+  "features": [
+    {
+      "id": "F01",
+      "name": "Public module listing",
+      "description": "Landing page shows all modules as neumorphic cards fetched from Supabase.",
+      "files": ["app/page.tsx", "lib/weeks.ts", "lib/types.ts"]
+    },
+    {
+      "id": "F02",
+      "name": "Weekly report cards",
+      "description": "Each module page shows week cards with print/handwrite page chips, full PDF link, and DOCX dropdown.",
+      "files": ["app/modules/[module]/page.tsx", "components/PrintPlan.tsx"]
+    },
+    {
+      "id": "F03",
+      "name": "Page chip viewer",
+      "description": "Click any page chip to open the individual page PDF in a new tab.",
+      "files": ["components/PrintPlan.tsx"]
+    },
+    {
+      "id": "F04",
+      "name": "Download Printing Pages (merged PDF)",
+      "description": "Merges all print pages for a week into a single PDF via server-side API, triggers browser download with loading spinner. Filename format: Week{N}_{Title}_Printing.pdf.",
+      "files": ["app/api/weeks/[id]/print-merge/route.ts", "components/PrintPlan.tsx"]
+    },
+    {
+      "id": "F05",
+      "name": "DOCX dropdown",
+      "description": "Per-week DOCX file access via dropdown menu with correct download filenames through proxy route.",
+      "files": ["components/PrintPlan.tsx", "app/api/weeks/[id]/docx/route.ts"]
+    },
+    {
+      "id": "F06",
+      "name": "Week date display",
+      "description": "Read-only date chip on public cards showing when the lab was performed.",
+      "files": ["components/PrintPlan.tsx", "app/globals.css"]
+    },
+    {
+      "id": "F07",
+      "name": "Admin login",
+      "description": "PIN-based admin authentication via Supabase RPC (check_admin) with jose JWT session cookies.",
+      "files": ["app/admin/login/page.tsx", "lib/session.ts", "lib/actions.ts"]
+    },
+    {
+      "id": "F08",
+      "name": "Admin dashboard",
+      "description": "Module tabs, week list with page badges, all management actions in restructured action-rows.",
+      "files": ["app/admin/page.tsx", "components/AdminDashboard.tsx"]
+    },
+    {
+      "id": "F09",
+      "name": "Upload & Auto-Split",
+      "description": "Upload a weekly PDF, auto-parse filename for week number + print pages, split into individual page PDFs, upload all to Cloudinary.",
+      "files": ["lib/actions.ts (addWeek, splitWeekCore)", "components/AdminDashboard.tsx (AddWeekForm)"]
+    },
+    {
+      "id": "F10",
+      "name": "Re-split Pages",
+      "description": "Re-split existing week's full PDF. Clears old page files first (idempotent), then re-creates from full PDF.",
+      "files": ["lib/actions.ts (splitWeek, splitWeekCore, clearPageFiles)", "components/AdminDashboard.tsx"]
+    },
+    {
+      "id": "F11",
+      "name": "DOCX upload/replace",
+      "description": "Upload or replace DOCX file per week. Old file deleted from Cloudinary before new upload.",
+      "files": ["lib/actions.ts (uploadDocx)", "components/AdminDashboard.tsx (DocxForm)"]
+    },
+    {
+      "id": "F12",
+      "name": "Title editing",
+      "description": "Inline title edit form per week with save button.",
+      "files": ["lib/actions.ts (updateWeekTitle)", "components/AdminDashboard.tsx (TitleForm)"]
+    },
+    {
+      "id": "F13",
+      "name": "Date picker",
+      "description": "Custom neumorphic calendar picker for setting the lab-performed date per week (admin only).",
+      "files": ["components/NeumorphicDatePicker.tsx", "components/AdminDashboard.tsx (WeekDateForm)", "lib/actions.ts (updateWeekDate)"]
+    },
+    {
+      "id": "F14",
+      "name": "Delete week",
+      "description": "Delete a week and all its files (Cloudinary + DB) with confirmation dialog.",
+      "files": ["lib/actions.ts (deleteWeek)", "components/AdminDashboard.tsx"]
+    },
+    {
+      "id": "F15",
+      "name": "Module status toggle",
+      "description": "Toggle module status between 'ready' and 'soon'.",
+      "files": ["lib/actions.ts (updateModuleStatus)", "components/AdminDashboard.tsx"]
+    },
+    {
+      "id": "F16",
+      "name": "Loading spinners",
+      "description": "Inline loading animation on all action buttons (split, upload, docx, delete). Button shows spinner class + rotating circle while processing.",
+      "files": ["components/AdminDashboard.tsx", "components/PrintPlan.tsx", "app/globals.css"]
+    },
+    {
+      "id": "F17",
+      "name": "Toast notifications",
+      "description": "Global toast system for every action success/failure. Auto-dismiss after 3.5s, click to dismiss early. Green for success, red for errors.",
+      "files": ["components/ToastProvider.tsx", "app/layout.tsx", "app/globals.css"]
+    },
+    {
+      "id": "F18",
+      "name": "Admin session protection",
+      "description": "Middleware (proxy.ts) protects /admin routes, redirects to login if no valid session.",
+      "files": ["proxy.ts"]
+    },
+    {
+      "id": "F19",
+      "name": "Cloudinary PDF delivery fix",
+      "description": "Proxy route for DOCX downloads to get correct filenames. Print-merge route for merged PDFs (Cloudinary free plan blocks PDF delivery).",
+      "files": ["app/api/weeks/[id]/docx/route.ts", "app/api/weeks/[id]/print-merge/route.ts"]
+    },
+    {
+      "id": "F20",
+      "name": "Filename parser",
+      "description": "Parses filenames like 'Week1_(print 1,3,5,7 pages)_Title.pdf' to extract week number, print pages, and title.",
+      "files": ["lib/weekname.ts"]
+    },
+    {
+      "id": "F21",
+      "name": "Idempotent re-split",
+      "description": "splitWeekCore calls clearPageFiles at the start, making re-split safe against duplicates and concurrent calls.",
+      "files": ["lib/actions.ts"]
+    }
+  ],
+  "database": {
+    "provider": "Supabase PostgreSQL",
+    "tables": {
+      "modules": {
+        "columns": ["id uuid PK", "name text", "slug text unique", "description text", "status text default 'soon'", "created_at timestamptz"],
+        "rls": true
+      },
+      "weeks": {
+        "columns": ["id uuid PK", "module_id uuid FK→modules", "week_number int", "title text", "print_pages int[]", "total_pages int", "handwrite_pages int[]", "has_plan boolean default false", "done_on date", "created_at timestamptz"],
+        "constraints": "unique(module_id, week_number)",
+        "rls": true
+      },
+      "files": {
+        "columns": ["id uuid PK", "week_id uuid FK→weeks", "kind text (full_pdf|page_print|page_handwrite|docx)", "page_no int", "cloudinary_public_id text", "url text", "original_name text", "size_bytes bigint", "created_at timestamptz"],
+        "note": "No unique constraint on (week_id, kind) — allows re-split without conflicts",
+        "rls": true
+      },
+      "admins": {
+        "columns": ["id uuid PK", "name text unique", "password_hash text", "created_at timestamptz"],
+        "rls": true,
+        "seed": "sayantan / bcrypt(17071999bwubts25503)"
+      }
+    },
+    "rpc": {
+      "check_admin": {
+        "params": ["candidate text", "pin text"],
+        "returns": "boolean",
+        "search_path": "extensions, public, pgcryptogc"
+      }
+    },
+    "migration": "ALTER TABLE public.weeks ADD COLUMN IF NOT EXISTS done_on date; ALTER TABLE public.files DROP CONSTRAINT IF EXISTS files_week_id_kind_key;"
+  },
+  "api_routes": [
+    {
+      "path": "/api/weeks/[id]/print-merge",
+      "method": "GET",
+      "description": "Merges all print page PDFs for a week into a single PDF. Returns PDF blob.",
+      "auth": "none (public)"
+    },
+    {
+      "path": "/api/weeks/[id]/docx",
+      "method": "GET",
+      "description": "Proxies DOCX download from Cloudinary with correct Content-Disposition filename.",
+      "auth": "none (public)"
+    }
+  ],
+  "pages": [
+    { "path": "/", "type": "server", "description": "Module listing page" },
+    { "path": "/modules/[module]", "type": "server", "description": "Week cards for a module" },
+    { "path": "/admin/login", "type": "static", "description": "Admin login form" },
+    { "path": "/admin", "type": "server", "description": "Admin dashboard" }
+  ],
+  "components": [
+    { "name": "PrintPlan", "file": "components/PrintPlan.tsx", "description": "Public week cards with chips, download, DOCX dropdown" },
+    { "name": "AdminDashboard", "file": "components/AdminDashboard.tsx", "description": "Admin panel with tabs, week list, all management actions" },
+    { "name": "NeumorphicDatePicker", "file": "components/NeumorphicDatePicker.tsx", "description": "Custom dark neumorphic calendar picker" },
+    { "name": "ToastProvider", "file": "components/ToastProvider.tsx", "description": "Global toast notification context + renderer" }
+  ],
+  "lib": [
+    { "name": "types", "file": "lib/types.ts", "description": "ModuleRow, WeekRow, WeekFile, FileKind, AdminModule, ModuleMeta" },
+    { "name": "actions", "file": "lib/actions.ts", "description": "All server actions: login, logout, addWeek, splitWeek, uploadDocx, deleteWeek, updateWeekTitle, updateModuleStatus, updateWeekDate" },
+    { "name": "weeks", "file": "lib/weeks.ts", "description": "DB queries: getPublicModules, getWeeksForModule, getAdminModules" },
+    { "name": "weekname", "file": "lib/weekname.ts", "description": "Filename parser for WeekN_(print pages)_Title.pdf" },
+    { "name": "session", "file": "lib/session.ts", "description": "jose JWT session create/destroy/requireAdmin" },
+    { "name": "cloudinary", "file": "lib/cloudinary.ts", "description": "Cloudinary upload/delete helpers" },
+    { "name": "supabase/server", "file": "lib/supabase/server.ts", "description": "Supabase admin client" },
+    { "name": "supabase/client", "file": "lib/supabase/client.ts", "description": "Supabase browser client" }
+  ],
+  "config": {
+    "next_config": "next.config.ts",
+    "typescript": "tsconfig.json",
+    "eslint": "eslint.config.mjs",
+    "proxy": "proxy.ts (admin session middleware, Next 16 convention)",
+    "env": [".env.local (real credentials, gitignored)", ".env.example (template)"]
+  },
+  "changelog": [
+    {
+      "date": "2025-07-14",
+      "phase": "1 - Foundation",
+      "changes": [
+        "Initial Next.js 16 project scaffold with App Router + TypeScript",
+        "Supabase client setup (server + browser)",
+        "Cloudinary upload/delete helpers",
+        "jose JWT session system for admin auth",
+        "Database schema: modules, weeks, files, admins tables",
+        "check_admin RPC function with pgcrypto",
+        "Filename parser (parseWeekName)",
+        "Public module listing page",
+        "Week card display with page chips",
+        "Admin login page + form",
+        "Admin dashboard with module tabs",
+        "Upload & Auto-Split: addWeek + splitWeekCore",
+        "Re-split: splitWeek with clearPageFiles",
+        "DOCX upload/replace",
+        "Title editing",
+        "Date picker (NeumorphicDatePicker)",
+        "Delete week with Cloudinary cleanup",
+        "Module status toggle",
+        "API: /api/weeks/[id]/print-merge (PDF merge)",
+        "API: /api/weeks/[id]/docx (DOCX proxy)",
+        "Admin session middleware (proxy.ts)",
+        "Neumorphic dark UI CSS (globals.css)"
+      ]
+    },
+    {
+      "date": "2025-07-15",
+      "phase": "2 - DB fixes + Cloudinary",
+      "changes": [
+        "Fixed check_admin RPC: set search_path to extensions, public, pgcryptogc",
+        "Migration: dropped unique (week_id, kind) constraint on files table",
+        "Migration: added done_on date column to weeks table",
+        "Cloudinary PDF delivery fix: user enabled Settings > Security > Allow PDF/ZIP delivery",
+        "Fixed silent DB insert failures in splitWeekCore (now throws on error)",
+        "Re-split completed for 3 Python Lab weeks via puppeteer E2E",
+        "All page PDFs verified present in Cloudinary (16 URLs, all 200)"
+      ]
+    },
+    {
+      "date": "2025-07-16",
+      "phase": "3 - UI polish",
+      "changes": [
+        "DOCX dropdown fix: document click listener uses .closest('.docx-wrap')",
+        "Removed download attribute from print-merge anchor (JSON errors open inline)",
+        "Admin week actions restructured into action-rows (meta-row, danger-row)",
+        "Responsive CSS for action rows",
+        "Week date shown as read-only chip on public cards",
+        "WeekDatePicker.tsx removed from public page (admin-only editing)",
+        "FileField component for styled file inputs",
+        "README.md updated for Supabase/Cloudinary/Vercel stack",
+        ".gitignore updated; 3rdSemProjects/ untracked"
+      ]
+    },
+    {
+      "date": "2026-08-07",
+      "phase": "4 - Loading + Toasts",
+      "changes": [
+        "Print-merge download converted from <a> to <button> with fetch + blob download",
+        "Loading spinner CSS: .admin-btn.loading with inline rotating circle",
+        "PrintPlan: loading state per week during print-merge download",
+        "AdminDashboard: loading state on split/re-split buttons",
+        "AddWeekForm: loading state on Upload & Auto-Split",
+        "DocxForm: loading state on Upload/Replace DOCX",
+        "Idempotent re-split: splitWeekCore calls clearPageFiles at start (prevents duplicates)",
+        "ToastProvider: global context + hook for toast notifications",
+        "Toast CSS: fixed bottom-center stack, auto-dismiss 3.5s, click to dismiss",
+        "Toast wired to: download, split, re-split, upload, docx, title, date, delete",
+        "ToastProvider added to root layout",
+        "Removed full-page spinner overlay (button-only loading)",
+        "Fixed print-merge download filename: Week{UUID} -> Week{N}_{Title}_Printing.pdf"
+      ]
+    }
+  ],
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test_helpers": [
+      "scripts/dbcheck.mjs",
+      "scripts/dbcheck2.mjs",
+      "scripts/inspect.mjs",
+      "scripts/filescheck.mjs",
+      "scripts/e2e-login.mjs",
+      "scripts/e2e-debug.mjs",
+      "scripts/docx-test.mjs",
+      "scripts/resplit.mjs"
+    ]
+  },
+  "environment_variables": [
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "CLOUDINARY_CLOUD_NAME",
+    "CLOUDINARY_API_KEY",
+    "CLOUDINARY_API_SECRET",
+    "ADMIN_SESSION_SECRET"
+  ],
+  "cloudinary": {
+    "cloud": "dhw3ttwaz",
+    "folder_structure": "bwu/{moduleId}/Week{N}/",
+    "assets": ["report (full PDF)", "pages/print-XX", "pages/handwrite-XX", "report_docx"],
+    "note": "Free plan: must enable Settings > Security > Allow delivery of PDF and ZIP files"
+  },
+  "admin_credentials": {
+    "name": "sayantan",
+    "hash": "bcrypt (stored in admins table, PIN not in repo)",
+    "table": "admins"
+  },
+  "git": {
+    "commits": 2,
+    "local_only": true,
+    "no_remote": true,
+    "uncommitted": "All work from phases 1-4 on disk only"
+  },
+  "notes": [
+    "Next.js 16 deprecation: middleware.ts renamed to proxy.ts with named export 'proxy'",
+    "Supabase pre-installs pgcrypto in 'extensions' schema, not 'public'",
+    "Cloudinary free plan blocks PDF/ZIP delivery by default",
+    "3rdSemProjects/ directory untracked via git rm --cached (99 deletions staged)",
+    "WeekDatePicker.tsx exists but is unused (removed from public page, should be cleaned up)",
+    "scripts/ directory contains test/helper files that should be cleaned up before final commits"
+  ]
+}
