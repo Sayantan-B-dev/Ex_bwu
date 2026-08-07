@@ -1275,6 +1275,24 @@ footer code {
 }
 
 /* admin buttons loading state */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- Page transition spinner ---------- */
+.page-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-spinner { animation: none; border-color: var(--accent); }
+}
+
 .admin-btn.loading {
   cursor: wait;
   opacity: 0.7;

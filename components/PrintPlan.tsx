@@ -26,7 +26,9 @@ function pageUrl(w: WeekRow, kind: "page_print" | "page_handwrite", p: number): 
 }
 
 function fullPdfUrl(w: WeekRow): string | undefined {
-  return w.files.find((f) => f.kind === "full_pdf")?.url;
+  const f = w.files.find((f) => f.kind === "full_pdf");
+  if (!f) return undefined;
+  return `/api/weeks/${w.id}/full-pdf`;
 }
 
 function docxAsset(w: WeekRow): { url: string; name: string } | null {
