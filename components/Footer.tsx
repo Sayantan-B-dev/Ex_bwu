@@ -1,3 +1,4 @@
+import Link from "next/link";
 import GitHubIcon from "@/components/GitHubIcon";
 
 export default function Footer() {
@@ -13,6 +14,7 @@ export default function Footer() {
         <GitHubIcon />
         GitHub · SM_BtechSyllabus
       </a>
+      <Link className="master-link" href="/admin">Master Login</Link>
     </footer>
   );
 }

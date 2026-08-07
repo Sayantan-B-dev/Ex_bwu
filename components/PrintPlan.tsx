@@ -2,91 +2,86 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { PDFDocument } from "pdf-lib";
-import type { Week } from "@/lib/paths";
-import { pageUrl, fullPdfUrl, docxUrl } from "@/lib/paths";
+import { useToast } from "@/components/ToastProvider";
+import type { WeekRow } from "@/lib/types";
 
 interface PrintPlanProps {
-  weeks: Week[];
+  weeks: WeekRow[];
+  moduleName: string;
 }
 
-export default function PrintPlan({ weeks }: PrintPlanProps) {
+function formatDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  } catch {
+    return iso;
+  }
+}
+
+function pageUrl(w: WeekRow, kind: "page_print" | "page_handwrite", p: number): string | undefined {
+  return w.files.find((f) => f.kind === kind && f.pageNo === p)?.url;
+}
+
+function fullPdfUrl(w: WeekRow): string | undefined {
+  return w.files.find((f) => f.kind === "full_pdf")?.url;
+}
+
+function docxAsset(w: WeekRow): { url: string; name: string } | null {
+  const f = w.files.find((f) => f.kind === "docx");
+  if (!f) return null;
+  return { url: `/api/weeks/${w.id}/docx`, name: f.originalName ?? `Week${w.n}.docx` };
+}
+
+export default function PrintPlan({ weeks, moduleName }: PrintPlanProps) {
   const [open, setOpen] = useState(false);
-  const [loadingKey, setLoadingKey] = useState<number | null>(null);
+  const [loadingWeekId, setLoadingWeekId] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  useEffect(() => {
-    const closeDocx = () => setOpen(false);
-    const onKeydown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeDocx();
-    };
-    document.addEventListener("click", closeDocx);
-    document.addEventListener("keydown", onKeydown);
-    return () => {
-      document.removeEventListener("click", closeDocx);
-      document.removeEventListener("keydown", onKeydown);
-    };
-  }, []);
-
-  async function mergePrintPages(w: Week) {
+  async function handlePrintDownload(weekId: string, weekN: number, weekTitle: string) {
+    setLoadingWeekId(weekId);
     try {
-      const merged = await PDFDocument.create();
-      for (const p of w.print) {
-        const resp = await fetch(pageUrl(w, "print", p));
-        if (!resp.ok) throw new Error(`Failed to load page ${p}`);
-        const src = await PDFDocument.load(await resp.arrayBuffer());
-        const copied = await merged.copyPages(src, src.getPageIndices());
-        copied.forEach(cp => merged.addPage(cp));
-      }
-      const bytes = await merged.save();
-      const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-      const blob = new Blob([buf], { type: "application/pdf" });
+      const res = await fetch(`/api/weeks/${weekId}/print-merge`);
+      if (!res.ok) throw new Error("merge failed");
+      const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Week${w.n}_${w.title.replace(/\s+/g, "_")}_Print_Pages.pdf`;
+      a.download = `Week${weekN}_${weekTitle.replace(/\s+/g, "_")}_Printing.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch (e) {
-      alert("Merge failed: " + (e as Error).message);
+      toast("Printing pages downloaded");
+    } catch {
+      toast("Download failed", false);
+      window.open(`/api/weeks/${weekId}/print-merge`, "_blank", "noopener");
+    } finally {
+      setLoadingWeekId(null);
     }
   }
 
-  async function downloadDocx(w: Week) {
-    const url = docxUrl(w);
-    if (!url) return;
-    try {
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error(`Failed to load DOCX (${resp.status})`);
-      const blob = await resp.blob();
-      const objUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = objUrl;
-      a.download = w.docxName ?? `Week${w.n}_report.docx`;
-      a.click();
-      URL.revokeObjectURL(objUrl);
-    } catch (e) {
-      alert("Download failed: " + (e as Error).message);
-    }
-  }
-
-  async function handleDownload(w: Week) {
-    if (loadingKey === w.n) return;
-    if (!w.print || !w.print.length) return;
-    // eslint-disable-next-line react-hooks/purity -- event handler, Date.now is intentional (2s min spinner)
-    const started = Date.now();
-    setLoadingKey(w.n);
-    await mergePrintPages(w);
-    // eslint-disable-next-line react-hooks/purity -- event handler, Date.now is intentional (2s min spinner)
-    const elapsed = Date.now() - started;
-    if (elapsed < 2000) await new Promise(r => setTimeout(r, 2000 - elapsed));
-    setLoadingKey(null);
-  }
+  useEffect(() => {
+    const closeDocx = () => setOpen(false);
+    const onDocClick = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest(".docx-wrap")) setOpen(false);
+    };
+    const onKeydown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeDocx();
+    };
+    document.addEventListener("click", onDocClick);
+    document.addEventListener("keydown", onKeydown);
+    return () => {
+      document.removeEventListener("click", onDocClick);
+      document.removeEventListener("keydown", onKeydown);
+    };
+  }, []);
 
   return (
     <>
       <header>
         <div className="kicker">
-          <Link className="back-home" href="/">← All Modules</Link> · BTech 3rd Semester · Python Lab
+          <Link className="back-home" href="/">← All Modules</Link> · BTech 3rd Semester · {moduleName}
         </div>
         <h1>Weekly Reports - Print Plan</h1>
         <p>Pages to print for the final report, and pages left blank for handwritten work. Click any page to open the PDF in a new tab.</p>
@@ -106,13 +101,13 @@ export default function PrintPlan({ weeks }: PrintPlanProps) {
             </button>
             <div className="docx-menu">
               {weeks.map(w => {
-                const url = docxUrl(w);
-                if (!url) return null;
+                const asset = docxAsset(w);
+                if (!asset) return null;
                 return (
-                  <button key={w.n} className="docx-row" type="button" onClick={() => downloadDocx(w)}>
+                  <a key={w.id} className="docx-row" href={asset.url} download={asset.name}>
                     <span className="docx-name">Week {w.n} · {w.title}</span>
                     <span className="docx-dl">Download</span>
-                  </button>
+                  </a>
                 );
               })}
             </div>
@@ -123,56 +118,75 @@ export default function PrintPlan({ weeks }: PrintPlanProps) {
 
       <main className="grid">
         {weeks.length === 0 ? (
-          <p className="no-data">weeks data not found. Run <code>node split.js</code> in the pdf folder to generate it.</p>
+          <p className="no-data">No weeks uploaded yet for this module.</p>
         ) : (
           weeks.map(w => (
-            <article className="card" key={w.n}>
+            <article className="card" key={w.id}>
               <header className="card-head">
                 <h2>Week {w.n} <span className="card-sub">· {w.title}</span></h2>
+                <span className="week-date">{w.doneOn ? formatDate(w.doneOn) : "No date set"}</span>
                 <span className="pages-badge">{w.total ? `${w.total} pages` : "Plan pending"}</span>
               </header>
+
               {w.hasPlan ? (
                 <div className="rows">
-                  <div className="row print">
-                    <div className="row-label">Print Pages</div>
-                    <div className="chips">
-                      {w.print.map(p => (
-                        <button key={p} className="page-chip" title={`Page ${p}`} onClick={() => window.open(pageUrl(w, "print", p), "_blank", "noopener")}>{p}</button>
-                      ))}
+                  {w.print.length > 0 && (
+                    <div className="row print">
+                      <div className="row-label">Print Pages</div>
+                      <div className="chips">
+                        {w.print.map(p => {
+                          const url = pageUrl(w, "page_print", p);
+                          return (
+                            <button key={p} className="page-chip" title={`Page ${p}`} disabled={!url} onClick={() => url && window.open(url, "_blank", "noopener")}>{p}</button>
+                          );
+                        })}
+                      </div>
+                      {w.print.length > 0 && (
+                        <button
+                          className={loadingWeekId === w.id ? "download-print loading" : "download-print"}
+                          type="button"
+                          disabled={loadingWeekId !== null}
+                          onClick={() => handlePrintDownload(w.id, w.n, w.title)}
+                        >
+                          <svg className="dl-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                          <svg className="dl-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                          <span className="dl-label">{loadingWeekId === w.id ? "Merging..." : "Download Printing Pages"}</span>
+                        </button>
+                      )}
                     </div>
-                    <button
-                      className={loadingKey === w.n ? "download-print loading" : "download-print"}
-                      disabled={loadingKey === w.n}
-                      onClick={() => handleDownload(w)}
-                    >
-                      <svg className="dl-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                      <svg className="dl-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                      <span className="dl-label">{loadingKey === w.n ? "Merging Pages…" : "Download Printing Pages"}</span>
-                    </button>
-                  </div>
-                  <div className="row handwrite">
-                    <div className="row-label">Handwrite Only</div>
-                    <div className="chips">
-                      {w.handwrite.map(p => (
-                        <button key={p} className="page-chip" title={`Page ${p}`} onClick={() => window.open(pageUrl(w, "handwrite", p), "_blank", "noopener")}>{p}</button>
-                      ))}
+                  )}
+                  {w.handwrite.length > 0 && (
+                    <div className="row handwrite">
+                      <div className="row-label">Handwrite Only</div>
+                      <div className="chips">
+                        {w.handwrite.map(p => {
+                          const url = pageUrl(w, "page_handwrite", p);
+                          return (
+                            <button key={p} className="page-chip" title={`Page ${p}`} disabled={!url} onClick={() => url && window.open(url, "_blank", "noopener")}>{p}</button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               ) : (
                 <div className="rows">
                   <div className="row">
                     <div className="row-label">Print plan</div>
-                    <p className="plan-note">New PDF detected on GitHub — run <code>node split.js</code> in the pdf folder to generate the print plan.</p>
+                    <p className="plan-note">Plan pending - run <code>Split &amp; Save</code> from the dashboard to generate the print plan.</p>
                   </div>
                 </div>
               )}
-              <button className="open-full" onClick={() => { const url = fullPdfUrl(w); if (url) window.open(url, "_blank", "noopener"); }}>Open Full PDF</button>
+
+              {fullPdfUrl(w) && (
+                <button className="open-full" onClick={() => { const url = fullPdfUrl(w); if (url) window.open(url, "_blank", "noopener"); }}>Open Full PDF</button>
+              )}
+
               <div className="row-footer">
                 {w.hasPlan ? (
-                  <span>Print: <b>{w.print.join(", ")}</b> · Handwrite: <b>{w.handwrite.join(", ")}</b></span>
+                  <span>Print: <b>{w.print.length ? w.print.join(", ") : "-"}</b> · Handwrite: <b>{w.handwrite.length ? w.handwrite.join(", ") : "-"}</b></span>
                 ) : (
-                  <span className="muted">Auto-detected — plan not generated yet.</span>
+                  <span className="muted">Plan not generated yet.</span>
                 )}
               </div>
             </article>

@@ -1,7 +1,12 @@
 import Link from "next/link";
 import Footer from "@/components/Footer";
+import { getModules } from "@/lib/weeks";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const modules = await getModules();
+
   return (
     <div className="wrap">
       <header>
@@ -11,43 +16,37 @@ export default function Home() {
       </header>
 
       <main className="grid">
-        <div className="module-card">
-          <div className="module-top">
-            <span className="module-title">Python Lab</span>
-            <span className="module-badge">Ready</span>
-          </div>
-          <p className="module-desc">Weekly Reports - Print Plan. Page-by-page print/handwrite breakdown for the final report.</p>
-          <div className="module-stats">
-            <span className="stat-chip">4 Weekly Reports</span>
-            <span className="stat-chip">30 Pages</span>
-            <span className="stat-chip">Print · Handwrite</span>
-          </div>
-          <ul className="module-features">
-            <li>Page chips - open any page PDF in a new tab</li>
-            <li>Open Full PDF link per report</li>
-            <li>Merge print pages into a single PDF download</li>
-            <li>Access all files as DOCX</li>
-          </ul>
-          <Link className="enter-btn" href="/modules/python">See Contents</Link>
-        </div>
-
-        <div className="module-card coming">
-          <div className="module-top">
-            <span className="module-title">DBMS</span>
-            <span className="module-badge">Soon</span>
-          </div>
-          <p className="module-desc">Coming soon.</p>
-          <span className="enter-btn disabled">See Contents</span>
-        </div>
-
-        <div className="module-card coming">
-          <div className="module-top">
-            <span className="module-title">COA</span>
-            <span className="module-badge">Soon</span>
-          </div>
-          <p className="module-desc">Coming soon.</p>
-          <span className="enter-btn disabled">See Contents</span>
-        </div>
+        {modules.map((m) => {
+          const ready = m.status === "ready";
+          return (
+            <div key={m.id} className={ready ? "module-card" : "module-card coming"}>
+              <div className="module-top">
+                <span className="module-title">{m.name}</span>
+                <span className="module-badge">{ready ? "Ready" : "Soon"}</span>
+              </div>
+              <p className="module-desc">{m.tagline || "Coming soon."}</p>
+              {m.meta.stats.length > 0 && (
+                <div className="module-stats">
+                  {m.meta.stats.map((s) => (
+                    <span key={s} className="stat-chip">{s}</span>
+                  ))}
+                </div>
+              )}
+              {m.meta.features.length > 0 && (
+                <ul className="module-features">
+                  {m.meta.features.map((f) => (
+                    <li key={f}>{f}</li>
+                  ))}
+                </ul>
+              )}
+              {ready ? (
+                <Link className="enter-btn" href={`/modules/${m.id}`}>See Contents</Link>
+              ) : (
+                <span className="enter-btn disabled">See Contents</span>
+              )}
+            </div>
+          );
+        })}
       </main>
 
       <Footer />
