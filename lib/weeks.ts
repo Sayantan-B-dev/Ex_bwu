@@ -1,63 +1,130 @@
-import path from "path";
-import { readdir } from "fs/promises";
-import type { Week } from "./paths";
+import "server-only";
+import { getSupabaseAnon } from "@/lib/supabase/client";
+import type { AdminModule, WeekRow } from "@/lib/types";
 
-const ROOT = path.join(process.cwd(), "3rdSemProjects", "PYTHON");
-
-function deriveTitle(name: string): string {
-  let t = name.replace(/\.(pdf|docx)$/i, "");
-  t = t.replace(/^Week\d+_/, "");
-  t = t.replace(/_?\(print\s+[\d,\s]+\s+pages?\)/i, "");
-  t = t.replace(/_Report$/i, "");
-  return t.split("_").filter(Boolean).join(" ");
+interface ModuleRowRaw {
+  id: string;
+  name: string;
+  status: "ready" | "soon";
+  sort_order: number;
+  tagline: string | null;
+  meta: { stats?: string[]; features?: string[] };
 }
 
-async function safeReaddir(dir: string): Promise<string[]> {
-  try {
-    return await readdir(dir);
-  } catch {
-    return [];
-  }
+interface WeekRowRaw {
+  id: string;
+  module_id: string;
+  week_number: number;
+  title: string;
+  print_pages: number[];
+  handwrite_pages: number[];
+  total_pages: number | null;
+  has_plan: boolean;
+  done_on: string | null;
+  updated_at: string;
+  files: FileRowRaw[];
 }
 
-async function pageNumbers(dir: string): Promise<number[]> {
-  const files = await safeReaddir(dir);
-  return files
-    .map((f) => /^page-(\d+)\.pdf$/.exec(f)?.[1])
-    .filter((m): m is string => m !== undefined)
-    .map((m) => parseInt(m, 10))
-    .sort((a, b) => a - b);
+interface FileRowRaw {
+  id: string;
+  kind: "full_pdf" | "docx" | "page_print" | "page_handwrite";
+  page_no: number | null;
+  url: string;
+  original_name: string | null;
+  size_bytes: number | null;
 }
 
-export async function getWeeks(): Promise<Week[]> {
-  const pdfsDir = path.join(ROOT, "pdfs");
-  const pdfNames = (await safeReaddir(pdfsDir)).filter((f) => /^Week(\d+)_.*\.pdf$/i.test(f));
+function mapModule(row: ModuleRowRaw, weekCount: number): AdminModule {
+  return {
+    id: row.id,
+    name: row.name,
+    status: row.status,
+    sortOrder: row.sort_order,
+    tagline: row.tagline,
+    meta: { stats: row.meta?.stats ?? [], features: row.meta?.features ?? [] },
+    weekCount,
+    weeks: [],
+  };
+}
 
-  const docxDir = path.join(ROOT, "docx", "weekly");
-  const docxByName = new Map<number, string>();
-  for (const f of await safeReaddir(docxDir)) {
-    const m = /^Week(\d+)_.*\.docx$/i.exec(f);
-    if (m) docxByName.set(parseInt(m[1], 10), f);
+function mapWeek(row: WeekRowRaw): WeekRow {
+  return {
+    id: row.id,
+    moduleId: row.module_id,
+    n: row.week_number,
+    title: row.title,
+    print: row.print_pages ?? [],
+    handwrite: row.handwrite_pages ?? [],
+    total: row.total_pages,
+    hasPlan: row.has_plan,
+    doneOn: row.done_on ?? null,
+    files: (row.files ?? []).map((f) => ({
+      id: f.id,
+      kind: f.kind,
+      pageNo: f.page_no,
+      url: f.url,
+      originalName: f.original_name,
+      sizeBytes: f.size_bytes,
+    })),
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function getModules(): Promise<AdminModule[]> {
+  const supabase = getSupabaseAnon();
+  const { data: modules, error } = await supabase
+    .from("modules")
+    .select("id, name, status, sort_order, tagline, meta")
+    .order("sort_order", { ascending: true });
+  if (error) throw new Error(error.message);
+
+  const { data: weeks } = await supabase.from("weeks").select("module_id");
+  const counts = new Map<string, number>();
+  for (const w of weeks ?? []) {
+    const c = counts.get(w.module_id as string) ?? 0;
+    counts.set(w.module_id as string, c + 1);
   }
 
-  const weeks: Week[] = [];
-  for (const pdfName of pdfNames) {
-    const n = parseInt(/^Week(\d+)/i.exec(pdfName)![1], 10);
-    const splitRoot = path.join(pdfsDir, "split", `Week${n}`);
-    const print = await pageNumbers(path.join(splitRoot, "print"));
-    const handwrite = await pageNumbers(path.join(splitRoot, "handwrite"));
-    const hasPlan = print.length + handwrite.length > 0;
-    weeks.push({
-      n,
-      title: deriveTitle(pdfName),
-      total: hasPlan ? print.length + handwrite.length : null,
-      print,
-      handwrite,
-      pdfName,
-      docxName: docxByName.get(n) ?? null,
-      hasPlan,
-    });
+  return (modules as ModuleRowRaw[] | null ?? []).map((m) =>
+    mapModule(m, counts.get(m.id) ?? 0)
+  );
+}
+
+export async function getModule(id: string): Promise<AdminModule | null> {
+  const supabase = getSupabaseAnon();
+  const { data, error } = await supabase
+    .from("modules")
+    .select("id, name, status, sort_order, tagline, meta")
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data) return null;
+  const { data: weeks } = await supabase
+    .from("weeks")
+    .select("module_id")
+    .eq("module_id", id);
+  return mapModule(data as ModuleRowRaw, (weeks ?? []).length);
+}
+
+export async function getModuleWeeks(moduleId: string): Promise<WeekRow[]> {
+  const supabase = getSupabaseAnon();
+  const { data, error } = await supabase
+    .from("weeks")
+    .select(
+      "id, module_id, week_number, title, print_pages, handwrite_pages, total_pages, has_plan, done_on, updated_at, " +
+        "files(id, kind, page_no, url, original_name, size_bytes)"
+    )
+    .eq("module_id", moduleId)
+    .order("week_number", { ascending: true });
+  if (error) return [];
+  const rows = (data as unknown as WeekRowRaw[]) ?? [];
+  return rows.map(mapWeek);
+}
+
+export async function getAdminData(): Promise<AdminModule[]> {
+  const modules = await getModules();
+  for (const mod of modules) {
+    const weeks = await getModuleWeeks(mod.id);
+    mod.weeks = weeks;
   }
-  weeks.sort((a, b) => a.n - b.n);
-  return weeks;
+  return modules;
 }
