@@ -1,0 +1,319 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import NeumorphicDatePicker from "@/components/NeumorphicDatePicker";
+import { useToast } from "@/components/ToastProvider";
+import {
+  addWeek,
+  splitWeek,
+  uploadDocx,
+  deleteWeek,
+  updateWeekTitle,
+  updateModuleStatus,
+  updateWeekDate,
+  logout,
+} from "@/lib/actions";
+import type { AdminModule, WeekRow } from "@/lib/types";
+
+interface Msg {
+  ok: boolean;
+  text: string;
+}
+
+function FileField({
+  name,
+  label,
+  accept,
+  id,
+}: {
+  name: string;
+  label: string;
+  accept: string;
+  id: string;
+}) {
+  const [fileName, setFileName] = useState("");
+  return (
+    <div className="admin-field">
+      <input
+        className="file-hidden"
+        id={id}
+        name={name}
+        type="file"
+        accept={accept}
+        required
+        onChange={(e) => {
+          setFileName(e.currentTarget.files?.[0]?.name ?? "");
+        }}
+      />
+      <label className="file-btn" htmlFor={id}>
+        {label}
+        {fileName && <span className="file-name">{fileName}</span>}
+      </label>
+    </div>
+  );
+}
+
+export default function AdminDashboard({ modules }: { modules: AdminModule[] }) {
+  const router = useRouter();
+  const [active, setActive] = useState(modules[0]?.id ?? "");
+  const [msg, setMsg] = useState<Msg | null>(null);
+  const [pending, startTransition] = useTransition();
+  const [loadingKey, setLoadingKey] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const mod = modules.find((m) => m.id === active) ?? modules[0];
+
+  async function run(fn: Promise<{ ok: boolean; error?: string }>, key?: string, label?: string) {
+    setMsg(null);
+    if (key) setLoadingKey(key);
+    try {
+      const res = await fn;
+      if (res.ok) {
+        toast(label ?? "Done");
+      } else {
+        setMsg({ ok: false, text: res.error ?? "Failed." });
+        toast(res.error ?? "Failed", false);
+      }
+    } catch {
+      setMsg({ ok: false, text: "Something went wrong." });
+      toast("Something went wrong", false);
+    } finally {
+      if (key) setLoadingKey(null);
+    }
+    startTransition(() => router.refresh());
+  }
+
+  async function handleLogout() {
+    await logout();
+  }
+
+  return (
+    <div className="wrap admin-wrap">
+      <header>
+        <div className="kicker"><Link className="back-home" href="/">← Site</Link> · Administration</div>
+        <h1>Module Dashboard</h1>
+        <p>Upload weekly PDFs, generate print plans, and manage modules. Filename: <code>Week1_(print 1,3,5,7 pages)_Title.pdf</code> - the numbers in brackets are the pages to print. If nothing is printed, write <code>Week1_(print no pages)_Title.pdf</code>.</p>
+      </header>
+
+      <div className="admin-top">
+        <div className="admin-tabs">
+          {modules.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              className={m.id === mod?.id ? "admin-tab active" : "admin-tab"}
+              onClick={() => setActive(m.id)}
+            >
+              {m.name} · {m.weekCount}
+            </button>
+          ))}
+        </div>
+        <form action={() => run(updateModuleStatus(mod?.id ?? "", mod?.status === "ready" ? "soon" : "ready"))}>
+          <button className="admin-btn" type="submit" disabled={pending}>
+            {mod?.status === "ready" ? "Mark as Soon" : "Mark as Ready"}
+          </button>
+        </form>
+        <form action={() => handleLogout()}>
+          <button className="admin-btn danger" type="submit">Log Out</button>
+        </form>
+      </div>
+
+      {msg && <p className={msg.ok ? "admin-msg ok" : "admin-msg err"}>{msg.text}</p>}
+
+      {mod && (
+        <div className="admin-panel">
+          <div className="admin-module-head">
+            <h2>{mod.name} · {mod.status === "ready" ? "Ready" : "Soon"}</h2>
+            <span className="pages-badge">{mod.weekCount} weeks</span>
+          </div>
+
+          <AddWeekForm moduleId={mod.id} />
+
+          {mod.weeks.length === 0 ? (
+            <p className="admin-empty">No weeks uploaded yet.</p>
+          ) : (
+            <div className="admin-weeklist">
+              {mod.weeks.map((w) => {
+                const full = w.files.some((f) => f.kind === "full_pdf");
+                const hasDocx = w.files.some((f) => f.kind === "docx");
+                return (
+                  <div className="admin-week" key={w.id}>
+                    <div className="admin-week-head">
+                      <span className="admin-week-title">Week {w.n} · {w.title}</span>
+                      <span className="pages-badge">{w.total ? `${w.total} pages` : "Plan pending"}</span>
+                    </div>
+
+                    {w.hasPlan && (
+                      <div className="admin-pages">
+                        {w.print.map((p) => <span key={p} className="admin-page">{p}</span>)}
+                        {w.handwrite.map((p) => <span key={p} className="admin-page hw">{p}</span>)}
+                      </div>
+                    )}
+
+                    <div className="admin-week-actions">
+                    <div className="action-row">
+                      {!w.hasPlan ? (
+                        <button className={loadingKey === `split-${w.id}` ? "admin-btn solid loading" : "admin-btn solid"} type="button" disabled={pending || loadingKey !== null} onClick={() => run(splitWeek(w.id), `split-${w.id}`, "Pages split successfully")}>
+                          Split & Save
+                        </button>
+                      ) : (
+                        <button className={loadingKey === `split-${w.id}` ? "admin-btn loading" : "admin-btn"} type="button" disabled={pending || loadingKey !== null} onClick={() => run(splitWeek(w.id), `split-${w.id}`, "Pages re-split successfully")}>
+                          Re-split Pages
+                        </button>
+                      )}
+                        {!full && <span className="admin-empty">Full PDF missing</span>}
+                      </div>
+
+                      <div className="action-row">
+                        <DocxForm week={w} hasDocx={hasDocx} />
+                      </div>
+
+                      <div className="action-row meta-row">
+                        <TitleForm week={w} onDone={(r) => run(Promise.resolve(r))} />
+                        <WeekDateForm week={w} />
+                      </div>
+
+                      <div className="action-row danger-row">
+                        <button className={loadingKey === `del-${w.id}` ? "admin-btn danger loading" : "admin-btn danger"} type="button" disabled={pending || loadingKey !== null} onClick={() => { if (confirm(`Delete Week ${w.n}?`)) run(deleteWeek(w.id), `del-${w.id}`, `Week ${w.n} deleted`); }}>
+                          Delete Week
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AddWeekForm({ moduleId }: { moduleId: string }) {
+  const [status, setStatus] = useState<Msg | null>(null);
+  const [nonce, setNonce] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  async function handle(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    fd.set("moduleId", moduleId);
+    setStatus(null);
+    setLoading(true);
+    const res = await addWeek(fd);
+    setStatus(res.ok ? { ok: true, text: "Week uploaded and split." } : { ok: false, text: res.error ?? "Failed." });
+    if (res.ok) {
+      toast("Week uploaded & split");
+      form.reset();
+      setNonce((n) => n + 1);
+    } else {
+      toast(res.error ?? "Upload failed", false);
+    }
+    setLoading(false);
+  }
+  return (
+    <div>
+      <form className="admin-form" onSubmit={handle}>
+        <div className="admin-field">
+          <label htmlFor={`pdf-${moduleId}`}>Weekly PDF (required)</label>
+          <FileField key={nonce} name="pdf" label="Choose Weekly PDF" accept="application/pdf,.pdf" id={`pdf-${moduleId}`} />
+        </div>
+        <button className={loading ? "admin-btn solid loading" : "admin-btn solid"} type="submit" disabled={loading}>Upload & Auto-Split</button>
+      </form>
+      {status && <p className={status.ok ? "admin-msg ok" : "admin-msg err"}>{status.text}</p>}
+    </div>
+  );
+}
+
+function DocxForm({ week, hasDocx }: { week: WeekRow; hasDocx: boolean }) {
+  const [status, setStatus] = useState<Msg | null>(null);
+  const [nonce, setNonce] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  async function handle(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    setStatus(null);
+    setLoading(true);
+    const res = await uploadDocx(week.id, fd);
+    setStatus(res.ok ? { ok: true, text: "DOCX saved." } : { ok: false, text: res.error ?? "Failed." });
+    if (res.ok) {
+      toast("DOCX uploaded");
+      form.reset();
+      setNonce((n) => n + 1);
+    } else {
+      toast(res.error ?? "Upload failed", false);
+    }
+    setLoading(false);
+  }
+  return (
+    <div>
+      <form className="admin-form" onSubmit={handle}>
+        <FileField key={nonce} name="docx" label="Choose DOCX file" accept=".docx" id={`docx-${week.id}`} />
+        <button className={loading ? "admin-btn loading" : "admin-btn"} type="submit" disabled={loading}>{loading ? "Uploading..." : hasDocx ? "Replace DOCX" : "Upload DOCX"}</button>
+      </form>
+      {status && <p className={status.ok ? "admin-msg ok" : "admin-msg err"}>{status.text}</p>}
+    </div>
+  );
+}
+
+function WeekDateForm({ week }: { week: WeekRow }) {
+  const router = useRouter();
+  const [date, setDate] = useState<string | null>(week.doneOn ?? null);
+  const [status, setStatus] = useState<Msg | null>(null);
+  const { toast } = useToast();
+  async function handle(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setStatus(null);
+    const res = await updateWeekDate(week.id, new FormData(e.currentTarget).get("done") as string | null);
+    setStatus(res.ok ? { ok: true, text: "Date saved." } : { ok: false, text: res.error ?? "Failed." });
+    if (res.ok) {
+      toast("Date saved");
+      router.refresh();
+    } else {
+      toast(res.error ?? "Save failed", false);
+    }
+  }
+  return (
+    <div>
+      <form className="admin-form" onSubmit={handle}>
+        <input type="hidden" name="done" value={date ?? ""} />
+        <NeumorphicDatePicker value={date} onChange={setDate} />
+        <button className="admin-btn" type="submit">Save Date</button>
+      </form>
+      {status && <p className={status.ok ? "admin-msg ok" : "admin-msg err"}>{status.text}</p>}
+    </div>
+  );
+}
+
+function TitleForm({ week, onDone }: { week: WeekRow; onDone: (r: { ok: boolean; error?: string }) => void }) {
+  const [title, setTitle] = useState(week.title);
+  const [status, setStatus] = useState<Msg | null>(null);
+  const { toast } = useToast();
+  async function handle(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setStatus(null);
+    const res = await updateWeekTitle(week.id, title);
+    setStatus(res.ok ? { ok: true, text: "Title saved." } : { ok: false, text: res.error ?? "Failed." });
+    if (res.ok) {
+      toast("Title updated");
+    } else {
+      toast(res.error ?? "Save failed", false);
+    }
+    onDone(res);
+  }
+  return (
+    <div>
+      <form className="admin-form" onSubmit={handle}>
+        <input className="admin-input" value={title} onChange={(e) => setTitle(e.target.value)} aria-label={`Week ${week.n} title`} />
+        <button className="admin-btn" type="submit">Save Title</button>
+      </form>
+      {status && <p className={status.ok ? "admin-msg ok" : "admin-msg err"}>{status.text}</p>}
+    </div>
+  );
+}
