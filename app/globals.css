@@ -631,6 +631,12 @@ footer code {
   background: var(--surface);
   box-shadow: var(--inset-sm);
   transition: color 0.15s ease;
+  border: none;
+  font-family: inherit;
+  font-size: inherit;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
 }
 
 .docx-name {

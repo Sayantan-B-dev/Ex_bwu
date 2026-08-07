@@ -35,9 +35,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ path: s
     ext === ".pdf" ? "inline" : "attachment";
   const headers = new Headers();
   headers.set("Content-Type", MIME[ext]);
+  const asciiName = path.basename(filePath).replace(/[^\w.\- ]/g, "_");
   headers.set(
     "Content-Disposition",
-    `${disposition}; filename*=UTF-8''${encodeURIComponent(path.basename(filePath))}`
+    `${disposition}; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(path.basename(filePath))}`
   );
   headers.set("Cache-Control", "public, max-age=3600");
   return new NextResponse(new Uint8Array(data), { status: 200, headers });

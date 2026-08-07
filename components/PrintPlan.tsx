@@ -51,6 +51,24 @@ export default function PrintPlan({ weeks }: PrintPlanProps) {
     }
   }
 
+  async function downloadDocx(w: Week) {
+    const url = docxUrl(w);
+    if (!url) return;
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`Failed to load DOCX (${resp.status})`);
+      const blob = await resp.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = w.docxName ?? `Week${w.n}_report.docx`;
+      a.click();
+      URL.revokeObjectURL(objUrl);
+    } catch (e) {
+      alert("Download failed: " + (e as Error).message);
+    }
+  }
+
   async function handleDownload(w: Week) {
     if (loadingKey === w.n) return;
     if (!w.print || !w.print.length) return;
@@ -91,10 +109,10 @@ export default function PrintPlan({ weeks }: PrintPlanProps) {
                 const url = docxUrl(w);
                 if (!url) return null;
                 return (
-                  <a key={w.n} className="docx-row" href={url} download={w.docxName ?? undefined}>
+                  <button key={w.n} className="docx-row" type="button" onClick={() => downloadDocx(w)}>
                     <span className="docx-name">Week {w.n} · {w.title}</span>
                     <span className="docx-dl">Download</span>
-                  </a>
+                  </button>
                 );
               })}
             </div>
