@@ -8,6 +8,7 @@ Next.js (App Router, TypeScript) modules site with an admin dashboard. Same neum
 - **Data** - Supabase (Postgres: modules, weeks, files, admins) with RLS (public read-only)
 - **Files** - Cloudinary (raw PDF/DOCX) - full PDFs, DOCX, single page-PDFs
 - **Admin** - tiny name+PIN login (`/admin`), session cookie signed with `ADMIN_SESSION_SECRET`
+- **Upload** - Direct browser-to-Cloudinary upload (bypasses Next.js 10MB body limit)
 
 ## Setup
 
@@ -21,7 +22,8 @@ Login at `/admin` (link in the footer - "Master Login") with the admin seeded in
 
 **Uploading a week** (per module):
 - Filename must be `Week5_(print 1,3,5,7 pages)_Your_Title.pdf` - the numbers in brackets are the pages to print. If nothing is printed: `Week5_(print no pages)_Your_Title.pdf`.
-- "Upload & Auto-Split" saves the PDF to Cloudinary, records metadata in Supabase, reads the page count with pdf-lib, and splits every page into its own PDF (print/handwrite folders) - all automatically.
+- "Upload & Auto-Split" uploads the PDF directly to Cloudinary from your browser (no file size limit from Next.js), then the server creates the week record, saves metadata, and splits every page into its own PDF (print/handwrite folders) - all automatically.
+- **Cloudinary free plan limit:** raw file uploads are capped at 10MB per file. Files larger than 10MB require a paid Cloudinary plan.
 - DOCX is uploaded separately per week (download-only on the public page).
 
 ## Public pages

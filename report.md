@@ -33,9 +33,9 @@
 |---|---------|--------|
 | F07 | PIN-based admin login (Supabase RPC + JWT) | Done |
 | F08 | Dashboard with module tabs + week list | Done |
-| F09 | Upload & Auto-Split (filename parser + Cloudinary) | Done |
+| F09 | Upload & Auto-Split (direct Cloudinary upload + split) | Done |
 | F10 | Re-split Pages (idempotent, no duplicates) | Done |
-| F11 | DOCX upload/replace (old file cleaned up) | Done |
+| F11 | DOCX upload/replace (direct Cloudinary upload) | Done |
 | F12 | Title editing (inline form) | Done |
 | F13 | Date picker (custom neumorphic calendar) | Done |
 | F14 | Delete week (Cloudinary + DB cleanup) | Done |
@@ -53,6 +53,7 @@
 | F21 | Idempotent re-split (clearPageFiles first) | Done |
 | F22 | Full PDF proxy route (correct filename) | Done |
 | F23 | Page transition loading spinners (loading.tsx) | Done |
+| F24 | Direct Cloudinary upload (bypasses Next.js body limit) | Done |
 
 ---
 
@@ -105,11 +106,14 @@ RPC: `check_admin(candidate, pin) -> boolean` (search_path: extensions, public, 
 
 ## API Routes
 
-| Route | Method | Description |
-|-------|--------|-------------|
-| `/api/weeks/[id]/print-merge` | GET | Merge print pages into single PDF |
-| `/api/weeks/[id]/docx` | GET | Proxy DOCX download with correct filename |
-| `/api/weeks/[id]/full-pdf` | GET | Proxy full PDF download with correct filename |
+| Route | Method | Auth | Description |
+|-------|--------|------|-------------|
+| `/api/weeks/[id]/print-merge` | GET | public | Merge print pages into single PDF |
+| `/api/weeks/[id]/docx` | GET | public | Proxy DOCX download with correct filename |
+| `/api/weeks/[id]/full-pdf` | GET | public | Proxy full PDF download with correct filename |
+| `/api/admin/cloudinary-sign` | POST | admin | Generate SHA256-signed upload params for direct Cloudinary upload |
+| `/api/admin/upload-week` | POST | admin | Create week record + split pages after direct Cloudinary upload |
+| `/api/admin/upload-docx/[id]` | POST | admin | Save DOCX metadata after direct Cloudinary upload |
 
 ---
 
@@ -132,6 +136,10 @@ app/
     print-merge/route.ts  # PDF merge endpoint
     docx/route.ts         # DOCX proxy
     full-pdf/route.ts     # Full PDF proxy (correct filename)
+  api/admin/
+    cloudinary-sign/route.ts  # Signed upload params for direct Cloudinary upload
+    upload-week/route.ts      # Create week + split after direct upload
+    upload-docx/[id]/route.ts # Save DOCX metadata after direct upload
 
 components/
   PrintPlan.tsx           # Public week cards
@@ -141,11 +149,12 @@ components/
 
 lib/
   types.ts               # TypeScript types
-  actions.ts             # All server actions (366 lines)
+  actions.ts             # Server actions: login, logout, splitWeek, deleteWeek, update*
   weeks.ts               # DB queries
   weekname.ts            # Filename parser
   session.ts             # JWT session
-  cloudinary.ts          # Upload/delete
+  cloudinary.ts          # Upload/delete (server-side)
+  cloudinary-client.ts   # Browser-side signed upload (bypasses Next.js body limit)
   supabase/server.ts     # Admin client
   supabase/client.ts     # Browser client
 
@@ -195,6 +204,16 @@ report.md                # This file
 - Toast mobile overflow fix
 - proxy.ts: throw on missing secret
 - Removed admin PIN from reports
+
+### Phase 5 - Direct Cloudinary Upload (2026-08-09)
+- Discovered Next.js 16 has hardcoded 10MB body size limit for all requests
+- Moved file uploads from Server Actions to direct browser-to-Cloudinary upload
+- Added /api/admin/cloudinary-sign for SHA256-signed upload params
+- Added lib/cloudinary-client.ts for browser-side Cloudinary upload
+- AddWeekForm: uploads PDF directly to Cloudinary, then calls API to create week + split
+- DocxForm: uploads DOCX directly to Cloudinary, then calls API to save metadata
+- Removed addWeek and uploadDocx server actions (replaced by direct upload pattern)
+- Cloudinary free plan limits raw file uploads to 10MB per file
 
 ---
 

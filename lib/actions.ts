@@ -6,7 +6,6 @@ import { PDFDocument } from "pdf-lib";
 import { createSession, destroySession, requireAdmin } from "@/lib/session";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { uploadBuffer, deleteByPublicId } from "@/lib/cloudinary";
-import { parseWeekName, WEEK_NAME_HINT } from "@/lib/weekname";
 
 export interface ActionResult {
   ok: boolean;
@@ -45,67 +44,6 @@ export async function logout(): Promise<void> {
   redirect("/admin/login");
 }
 
-export async function addWeek(formData: FormData): Promise<ActionResult> {
-  if (!(await ensureAdmin())) return { ok: false, error: "Not authorized." };
-  try {
-    ensureEnv();
-    const supabase = getSupabaseAdmin();
-
-    const moduleId = String(formData.get("moduleId") ?? "");
-    const file = formData.get("pdf") as File | null;
-    if (!moduleId || !file) return { ok: false, error: "Missing module or PDF file." };
-    if (file.size === 0) return { ok: false, error: "The PDF file is empty." };
-
-    const parsed = parseWeekName(file.name);
-    if (!parsed) return { ok: false, error: WEEK_NAME_HINT };
-
-    const { data: existing } = await supabase
-      .from("weeks")
-      .select("id")
-      .eq("module_id", moduleId)
-      .eq("week_number", parsed.n)
-      .maybeSingle();
-    if (existing) {
-      return { ok: false, error: `Week ${parsed.n} already exists for this module. Delete it first or use another week number.` };
-    }
-
-    const buffer = Buffer.from(await file.arrayBuffer());
-
-    const { data: week, error: insertError } = await supabase
-      .from("weeks")
-      .insert({
-        module_id: moduleId,
-        week_number: parsed.n,
-        title: parsed.title,
-        print_pages: parsed.printPages,
-      })
-      .select("id, module_id, week_number")
-      .single();
-    if (insertError || !week) return { ok: false, error: insertError?.message ?? "Could not save the week." };
-
-    const folder = `bwu/${moduleId}/Week${parsed.n}`;
-    const pdf = await uploadBuffer(buffer, folder, "report", "pdf");
-    await supabase.from("files").insert({
-      week_id: week.id,
-      kind: "full_pdf",
-      page_no: null,
-      cloudinary_public_id: pdf.publicId,
-      url: pdf.url,
-      original_name: file.name,
-      size_bytes: file.size,
-    });
-
-    await splitWeekCore(week.id, buffer, parsed.printPages);
-
-    revalidatePath("/");
-    revalidatePath(`/modules/${moduleId}`);
-    revalidatePath("/admin");
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: (e as Error).message };
-  }
-}
-
 export async function splitWeek(weekId: string): Promise<ActionResult> {
   if (!(await ensureAdmin())) return { ok: false, error: "Not authorized." };
   try {
@@ -134,61 +72,6 @@ export async function splitWeek(weekId: string): Promise<ActionResult> {
     await clearPageFiles(weekId);
 
     await splitWeekCore(weekId, buffer, week.print_pages ?? []);
-
-    revalidatePath(`/modules/${week.module_id}`);
-    revalidatePath("/admin");
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: (e as Error).message };
-  }
-}
-
-export async function uploadDocx(weekId: string, formData: FormData): Promise<ActionResult> {
-  if (!(await ensureAdmin())) return { ok: false, error: "Not authorized." };
-  try {
-    ensureEnv();
-    const supabase = getSupabaseAdmin();
-
-    const { data: week, error: weekError } = await supabase
-      .from("weeks")
-      .select("id, module_id, week_number")
-      .eq("id", weekId)
-      .single();
-    if (weekError || !week) return { ok: false, error: "Week not found." };
-
-    const file = formData.get("docx") as File | null;
-    if (!file || file.size === 0) return { ok: false, error: "Choose a DOCX file." };
-
-    const parsed = parseWeekName(file.name);
-    if (!parsed) return { ok: false, error: WEEK_NAME_HINT };
-    if (parsed.n !== week.week_number) {
-      return { ok: false, error: `DOCX is for Week ${parsed.n}, but this week is Week ${week.week_number}.` };
-    }
-
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const folder = `bwu/${week.module_id}/Week${week.week_number}`;
-    const docx = await uploadBuffer(buffer, folder, "report_docx", "docx");
-
-    const { data: oldDocx } = await supabase
-      .from("files")
-      .select("cloudinary_public_id")
-      .eq("week_id", weekId)
-      .eq("kind", "docx")
-      .maybeSingle();
-    if (oldDocx) {
-      await deleteByPublicId(oldDocx.cloudinary_public_id);
-      await supabase.from("files").delete().eq("week_id", weekId).eq("kind", "docx");
-    }
-
-    await supabase.from("files").insert({
-      week_id: weekId,
-      kind: "docx",
-      page_no: null,
-      cloudinary_public_id: docx.publicId,
-      url: docx.url,
-      original_name: file.name,
-      size_bytes: file.size,
-    });
 
     revalidatePath(`/modules/${week.module_id}`);
     revalidatePath("/admin");

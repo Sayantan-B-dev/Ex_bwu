@@ -5,7 +5,7 @@
     "version": "0.1.0",
     "repository": "https://github.com/Sayantan-B-dev/SM_BtechSyllabus",
     "startDate": "2025-07-14",
-    "lastUpdated": "2026-08-07"
+    "lastUpdated": "2026-08-09"
   },
   "stack": {
     "framework": "Next.js 16.3.0 (App Router, Turbopack)",
@@ -71,8 +71,8 @@
     {
       "id": "F09",
       "name": "Upload & Auto-Split",
-      "description": "Upload a weekly PDF, auto-parse filename for week number + print pages, split into individual page PDFs, upload all to Cloudinary.",
-      "files": ["lib/actions.ts (addWeek, splitWeekCore)", "components/AdminDashboard.tsx (AddWeekForm)"]
+      "description": "Upload a weekly PDF directly to Cloudinary from the browser (bypasses Next.js body size limits), then server creates week record, saves metadata, downloads from Cloudinary, and splits into individual page PDFs.",
+      "files": ["app/api/admin/cloudinary-sign/route.ts", "app/api/admin/upload-week/route.ts", "lib/cloudinary-client.ts", "components/AdminDashboard.tsx (AddWeekForm)"]
     },
     {
       "id": "F10",
@@ -83,8 +83,8 @@
     {
       "id": "F11",
       "name": "DOCX upload/replace",
-      "description": "Upload or replace DOCX file per week. Old file deleted from Cloudinary before new upload.",
-      "files": ["lib/actions.ts (uploadDocx)", "components/AdminDashboard.tsx (DocxForm)"]
+      "description": "Upload or replace DOCX file per week via direct-to-Cloudinary browser upload. Old file deleted from Cloudinary before new upload.",
+      "files": ["app/api/admin/cloudinary-sign/route.ts", "app/api/admin/upload-docx/[id]/route.ts", "lib/cloudinary-client.ts", "components/AdminDashboard.tsx (DocxForm)"]
     },
     {
       "id": "F12",
@@ -157,6 +157,12 @@
       "name": "Page transition loading spinners",
       "description": "loading.tsx files for route transitions (home, module, admin). Shows spinner during server component data fetching.",
       "files": ["app/loading.tsx", "app/modules/[module]/loading.tsx", "app/admin/loading.tsx", "app/globals.css"]
+    },
+    {
+      "id": "F24",
+      "name": "Direct Cloudinary upload",
+      "description": "Browser uploads files directly to Cloudinary using signed URLs (bypasses Next.js 10MB body size limit). Server generates SHA256 signature via /api/admin/cloudinary-sign, client uploads to Cloudinary API, then calls API route to save metadata in Supabase.",
+      "files": ["app/api/admin/cloudinary-sign/route.ts", "lib/cloudinary-client.ts"]
     }
   ],
   "database": {
@@ -209,6 +215,24 @@
       "method": "GET",
       "description": "Proxies full PDF download from Cloudinary with correct Content-Disposition filename.",
       "auth": "none (public)"
+    },
+    {
+      "path": "/api/admin/cloudinary-sign",
+      "method": "POST",
+      "description": "Generates SHA256-signed upload params for direct browser-to-Cloudinary upload.",
+      "auth": "admin JWT session"
+    },
+    {
+      "path": "/api/admin/upload-week",
+      "method": "POST",
+      "description": "Creates week record in Supabase, saves full PDF metadata, downloads from Cloudinary, splits into individual pages.",
+      "auth": "admin JWT session"
+    },
+    {
+      "path": "/api/admin/upload-docx/[id]",
+      "method": "POST",
+      "description": "Saves DOCX metadata to Supabase after direct browser-to-Cloudinary upload.",
+      "auth": "admin JWT session"
     }
   ],
   "pages": [
@@ -225,11 +249,12 @@
   ],
   "lib": [
     { "name": "types", "file": "lib/types.ts", "description": "ModuleRow, WeekRow, WeekFile, FileKind, AdminModule, ModuleMeta" },
-    { "name": "actions", "file": "lib/actions.ts", "description": "All server actions: login, logout, addWeek, splitWeek, uploadDocx, deleteWeek, updateWeekTitle, updateModuleStatus, updateWeekDate" },
+    { "name": "actions", "file": "lib/actions.ts", "description": "Server actions: login, logout, splitWeek, deleteWeek, updateWeekTitle, updateModuleStatus, updateModuleMeta, updateWeekDate" },
     { "name": "weeks", "file": "lib/weeks.ts", "description": "DB queries: getPublicModules, getWeeksForModule, getAdminModules" },
     { "name": "weekname", "file": "lib/weekname.ts", "description": "Filename parser for WeekN_(print pages)_Title.pdf" },
     { "name": "session", "file": "lib/session.ts", "description": "jose JWT session create/destroy/requireAdmin" },
-    { "name": "cloudinary", "file": "lib/cloudinary.ts", "description": "Cloudinary upload/delete helpers" },
+    { "name": "cloudinary", "file": "lib/cloudinary.ts", "description": "Cloudinary upload/delete helpers (server-side)" },
+    { "name": "cloudinary-client", "file": "lib/cloudinary-client.ts", "description": "Browser-side Cloudinary signed upload (bypasses Next.js body limit)" },
     { "name": "supabase/server", "file": "lib/supabase/server.ts", "description": "Supabase admin client" },
     { "name": "supabase/client", "file": "lib/supabase/client.ts", "description": "Supabase browser client" }
   ],
@@ -238,7 +263,8 @@
     "typescript": "tsconfig.json",
     "eslint": "eslint.config.mjs",
     "proxy": "proxy.ts (admin session middleware, Next 16 convention)",
-    "env": [".env.local (real credentials, gitignored)", ".env.example (template)"]
+    "env": [".env.local (real credentials, gitignored)", ".env.example (template)"],
+    "body_limit_note": "Next.js 16 has hardcoded 10MB body limit. File uploads bypass this via direct browser-to-Cloudinary upload."
   },
   "changelog": [
     {
@@ -322,6 +348,19 @@
         "proxy.ts: throw on missing ADMIN_SESSION_SECRET (was silent fallback)",
         "Removed admin PIN from report.json and report.md"
       ]
+    },
+    {
+      "date": "2026-08-09",
+      "phase": "5 - Direct Cloudinary Upload",
+      "changes": [
+        "Moved file uploads from Server Actions to API Route Handlers (still hit Next.js 10MB body limit)",
+        "Created /api/admin/cloudinary-sign route for SHA256-signed upload params",
+        "Created lib/cloudinary-client.ts for browser-to-Cloudinary direct upload (bypasses Next.js entirely)",
+        "AddWeekForm now uploads PDF directly to Cloudinary, then calls /api/admin/upload-week to create week + split pages",
+        "DocxForm now uploads DOCX directly to Cloudinary, then calls /api/admin/upload-docx to save metadata",
+        "Removed addWeek and uploadDocx server actions (replaced by direct upload + API routes)",
+        "Cloudinary free plan limit: 10MB per raw file upload (files > 10MB require paid plan)"
+      ]
     }
   ],
   "scripts": {
@@ -361,7 +400,7 @@
     "table": "admins"
   },
   "git": {
-    "commits": 12,
+    "commits": 14,
     "remote": "https://github.com/Sayantan-B-dev/Ex_bwu.git",
     "branch": "main",
     "status": "pushed"
@@ -370,8 +409,9 @@
     "Next.js 16 deprecation: middleware.ts renamed to proxy.ts with named export 'proxy'",
     "Supabase pre-installs pgcrypto in 'extensions' schema, not 'public'",
     "Cloudinary free plan blocks PDF/ZIP delivery by default",
-    "3rdSemProjects/ directory untracked via git rm --cached (99 deletions staged)",
-    "WeekDatePicker.tsx exists but is unused (removed from public page, should be cleaned up)",
-    "scripts/ directory contains test/helper files that should be cleaned up before final commits"
+    "Cloudinary free plan limits raw file uploads to 10MB per file",
+    "Next.js 16 has a hardcoded 10MB body size limit for all request types (Server Actions + API routes)",
+    "File uploads use direct browser-to-Cloudinary upload to bypass Next.js body limits",
+    "3rdSemProjects/ directory untracked via git rm --cached (99 deletions staged)"
   ]
 }

@@ -5,10 +5,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import NeumorphicDatePicker from "@/components/NeumorphicDatePicker";
 import { useToast } from "@/components/ToastProvider";
+import { signAndUpload } from "@/lib/cloudinary-client";
 import {
-  addWeek,
   splitWeek,
-  uploadDocx,
   deleteWeek,
   updateWeekTitle,
   updateModuleStatus,
@@ -203,18 +202,46 @@ function AddWeekForm({ moduleId }: { moduleId: string }) {
   async function handle(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
-    const fd = new FormData(form);
-    fd.set("moduleId", moduleId);
+    const fileInput = form.querySelector<HTMLInputElement>('input[type="file"]');
+    const file = fileInput?.files?.[0];
+    if (!file) { setStatus({ ok: false, text: "Choose a PDF file." }); return; }
+
     setStatus(null);
     setLoading(true);
-    const res = await addWeek(fd);
-    setStatus(res.ok ? { ok: true, text: "Week uploaded and split." } : { ok: false, text: res.error ?? "Failed." });
-    if (res.ok) {
-      toast("Week uploaded & split");
-      form.reset();
-      setNonce((n) => n + 1);
-    } else {
-      toast(res.error ?? "Upload failed", false);
+    try {
+      const folder = `bwu/${moduleId}`;
+      const publicId = `report_${Date.now()}`;
+      const upload = await signAndUpload({ folder, publicId, format: "pdf", file });
+      if (!upload.ok || !upload.publicId || !upload.url) {
+        setStatus({ ok: false, text: upload.error ?? "Upload failed." });
+        toast(upload.error ?? "Upload failed", false);
+        setLoading(false);
+        return;
+      }
+
+      const resp = await fetch("/api/admin/upload-week", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          moduleId,
+          fileName: file.name,
+          fileUrl: upload.url,
+          cloudinaryPublicId: upload.publicId,
+          sizeBytes: file.size,
+        }),
+      });
+      const res = await resp.json();
+      setStatus(res.ok ? { ok: true, text: "Week uploaded and split." } : { ok: false, text: res.error ?? "Failed." });
+      if (res.ok) {
+        toast("Week uploaded & split");
+        form.reset();
+        setNonce((n) => n + 1);
+      } else {
+        toast(res.error ?? "Upload failed", false);
+      }
+    } catch {
+      setStatus({ ok: false, text: "Something went wrong." });
+      toast("Upload failed", false);
     }
     setLoading(false);
   }
@@ -225,7 +252,7 @@ function AddWeekForm({ moduleId }: { moduleId: string }) {
           <label htmlFor={`pdf-${moduleId}`}>Weekly PDF (required)</label>
           <FileField key={nonce} name="pdf" label="Choose Weekly PDF" accept="application/pdf,.pdf" id={`pdf-${moduleId}`} />
         </div>
-        <button className={loading ? "admin-btn solid loading" : "admin-btn solid"} type="submit" disabled={loading}>Upload & Auto-Split</button>
+        <button className={loading ? "admin-btn solid loading" : "admin-btn solid"} type="submit" disabled={loading}>{loading ? "Uploading to Cloudinary..." : "Upload & Auto-Split"}</button>
       </form>
       {status && <p className={status.ok ? "admin-msg ok" : "admin-msg err"}>{status.text}</p>}
     </div>
@@ -240,17 +267,45 @@ function DocxForm({ week, hasDocx }: { week: WeekRow; hasDocx: boolean }) {
   async function handle(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
-    const fd = new FormData(form);
+    const fileInput = form.querySelector<HTMLInputElement>('input[type="file"]');
+    const file = fileInput?.files?.[0];
+    if (!file) { setStatus({ ok: false, text: "Choose a DOCX file." }); return; }
+
     setStatus(null);
     setLoading(true);
-    const res = await uploadDocx(week.id, fd);
-    setStatus(res.ok ? { ok: true, text: "DOCX saved." } : { ok: false, text: res.error ?? "Failed." });
-    if (res.ok) {
-      toast("DOCX uploaded");
-      form.reset();
-      setNonce((n) => n + 1);
-    } else {
-      toast(res.error ?? "Upload failed", false);
+    try {
+      const folder = `bwu/${week.moduleId}/Week${week.n}`;
+      const publicId = `report_docx_${Date.now()}`;
+      const upload = await signAndUpload({ folder, publicId, format: "docx", file });
+      if (!upload.ok || !upload.publicId || !upload.url) {
+        setStatus({ ok: false, text: upload.error ?? "Upload failed." });
+        toast(upload.error ?? "Upload failed", false);
+        setLoading(false);
+        return;
+      }
+
+      const resp = await fetch(`/api/admin/upload-docx/${week.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cloudinaryPublicId: upload.publicId,
+          cloudinaryUrl: upload.url,
+          originalName: file.name,
+          sizeBytes: file.size,
+        }),
+      });
+      const res = await resp.json();
+      setStatus(res.ok ? { ok: true, text: "DOCX saved." } : { ok: false, text: res.error ?? "Failed." });
+      if (res.ok) {
+        toast("DOCX uploaded");
+        form.reset();
+        setNonce((n) => n + 1);
+      } else {
+        toast(res.error ?? "Upload failed", false);
+      }
+    } catch {
+      setStatus({ ok: false, text: "Something went wrong." });
+      toast("Upload failed", false);
     }
     setLoading(false);
   }
@@ -258,7 +313,7 @@ function DocxForm({ week, hasDocx }: { week: WeekRow; hasDocx: boolean }) {
     <div>
       <form className="admin-form" onSubmit={handle}>
         <FileField key={nonce} name="docx" label="Choose DOCX file" accept=".docx" id={`docx-${week.id}`} />
-        <button className={loading ? "admin-btn loading" : "admin-btn"} type="submit" disabled={loading}>{loading ? "Uploading..." : hasDocx ? "Replace DOCX" : "Upload DOCX"}</button>
+        <button className={loading ? "admin-btn loading" : "admin-btn"} type="submit" disabled={loading}>{loading ? "Uploading to Cloudinary..." : hasDocx ? "Replace DOCX" : "Upload DOCX"}</button>
       </form>
       {status && <p className={status.ok ? "admin-msg ok" : "admin-msg err"}>{status.text}</p>}
     </div>
