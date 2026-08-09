@@ -259,6 +259,29 @@ export async function updateModuleStatus(moduleId: string, status: "ready" | "so
   }
 }
 
+export async function updateModuleMeta(
+  moduleId: string,
+  tagline: string,
+  stats: string[],
+  features: string[]
+): Promise<ActionResult> {
+  if (!(await ensureAdmin())) return { ok: false, error: "Not authorized." };
+  try {
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase
+      .from("modules")
+      .update({ tagline: tagline.trim() || null, meta: { stats, features } })
+      .eq("id", moduleId);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/");
+    revalidatePath(`/modules/${moduleId}`);
+    revalidatePath("/admin");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+}
+
 export async function updateWeekDate(weekId: string, date: string | null): Promise<ActionResult> {
   if (!(await ensureAdmin())) return { ok: false, error: "Not authorized." };
   try {

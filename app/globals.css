@@ -981,6 +981,29 @@ footer code {
   font-size: 13px;
 }
 
+/* ---------- Module meta editor ---------- */
+.admin-meta-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-meta-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: var(--radius-well);
+  box-shadow: var(--inset);
+}
+
+.admin-textarea {
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5;
+}
+
 .admin-login-card {
   max-width: 380px;
   margin: 0 auto;

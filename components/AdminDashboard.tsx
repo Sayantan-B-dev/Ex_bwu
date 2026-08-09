@@ -12,6 +12,7 @@ import {
   deleteWeek,
   updateWeekTitle,
   updateModuleStatus,
+  updateModuleMeta,
   updateWeekDate,
   logout,
 } from "@/lib/actions";
@@ -128,6 +129,8 @@ export default function AdminDashboard({ modules }: { modules: AdminModule[] }) 
             <h2>{mod.name} · {mod.status === "ready" ? "Ready" : "Soon"}</h2>
             <span className="pages-badge">{mod.weekCount} weeks</span>
           </div>
+
+          <ModuleMetaForm module={mod} />
 
           <AddWeekForm moduleId={mod.id} />
 
@@ -314,6 +317,58 @@ function TitleForm({ week, onDone }: { week: WeekRow; onDone: (r: { ok: boolean;
         <button className="admin-btn" type="submit">Save Title</button>
       </form>
       {status && <p className={status.ok ? "admin-msg ok" : "admin-msg err"}>{status.text}</p>}
+    </div>
+  );
+}
+
+function ModuleMetaForm({ module: mod }: { module: AdminModule }) {
+  const [open, setOpen] = useState(false);
+  const [tagline, setTagline] = useState(mod.tagline ?? "");
+  const [stats, setStats] = useState(mod.meta.stats.join(", "));
+  const [features, setFeatures] = useState(mod.meta.features.join("\n"));
+  const [status, setStatus] = useState<Msg | null>(null);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  async function handle(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    setStatus(null);
+    const statsArr = stats.split(",").map((s) => s.trim()).filter(Boolean);
+    const featuresArr = features.split("\n").map((f) => f.trim()).filter(Boolean);
+    const res = await updateModuleMeta(mod.id, tagline, statsArr, featuresArr);
+    setStatus(res.ok ? { ok: true, text: "Module info saved." } : { ok: false, text: res.error ?? "Failed." });
+    if (res.ok) {
+      toast("Module info updated");
+    } else {
+      toast(res.error ?? "Save failed", false);
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div className="admin-meta-wrap">
+      <button className="admin-btn" type="button" onClick={() => setOpen((o) => !o)}>
+        {open ? "Close Editor" : "Edit Module Info"}
+      </button>
+      {open && (
+        <form className="admin-meta-form" onSubmit={handle}>
+          <div className="admin-field">
+            <label>Tagline (shown on landing page)</label>
+            <input className="admin-input" style={{ maxWidth: "100%" }} value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="Short description of this module" />
+          </div>
+          <div className="admin-field">
+            <label>Stats (comma-separated, shown as chips)</label>
+            <input className="admin-input" style={{ maxWidth: "100%" }} value={stats} onChange={(e) => setStats(e.target.value)} placeholder="4 Weekly Reports, 30 Pages, Print · Handwrite" />
+          </div>
+          <div className="admin-field">
+            <label>Features (one per line, shown as list)</label>
+            <textarea className="admin-input admin-textarea" value={features} onChange={(e) => setFeatures(e.target.value)} rows={4} placeholder={"Page chips - open any page PDF in a new tab\nOpen Full PDF link per report\nMerge print pages into a single PDF download"} />
+          </div>
+          <button className={loading ? "admin-btn solid loading" : "admin-btn solid"} type="submit" disabled={loading}>Save Module Info</button>
+          {status && <p className={status.ok ? "admin-msg ok" : "admin-msg err"}>{status.text}</p>}
+        </form>
+      )}
     </div>
   );
 }

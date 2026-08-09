@@ -74,20 +74,46 @@ export async function getModules(): Promise<AdminModule[]> {
   const supabase = getSupabaseAnon();
   const { data: modules, error } = await supabase
     .from("modules")
-    .select("id, name, status, sort_order, tagline, meta")
+    .select(
+      "id, name, status, sort_order, tagline, meta, " +
+        "weeks(id, total_pages, has_plan, files(kind))"
+    )
     .order("sort_order", { ascending: true });
   if (error) throw new Error(error.message);
 
-  const { data: weeks } = await supabase.from("weeks").select("module_id");
-  const counts = new Map<string, number>();
-  for (const w of weeks ?? []) {
-    const c = counts.get(w.module_id as string) ?? 0;
-    counts.set(w.module_id as string, c + 1);
-  }
+  return (modules as unknown as (ModuleRowRaw & { weeks: { id: string; total_pages: number | null; has_plan: boolean; files: { kind: string }[] }[] })[] ?? []).map((m) => {
+    const weekCount = m.weeks?.length ?? 0;
+    const totalPages = (m.weeks ?? []).reduce((sum, w) => sum + (w.total_pages ?? 0), 0);
+    const hasDocx = (m.weeks ?? []).some((w) => w.files?.some((f) => f.kind === "docx"));
+    const hasPlan = (m.weeks ?? []).some((w) => w.has_plan);
 
-  return (modules as ModuleRowRaw[] | null ?? []).map((m) =>
-    mapModule(m, counts.get(m.id) ?? 0)
-  );
+    const stats: string[] = [];
+    if (weekCount > 0) stats.push(`${weekCount} Weekly Report${weekCount > 1 ? "s" : ""}`);
+    if (totalPages > 0) stats.push(`${totalPages} Pages`);
+    if (hasPlan) stats.push("Print · Handwrite");
+
+    const features: string[] = [];
+    if (hasPlan) {
+      features.push("Page chips - open any page PDF in a new tab");
+      features.push("Open Full PDF link per report");
+      features.push("Merge print pages into a single PDF download");
+    }
+    if (hasDocx) features.push("Access all files as DOCX");
+
+    return {
+      id: m.id,
+      name: m.name,
+      status: m.status,
+      sortOrder: m.sort_order,
+      tagline: m.tagline,
+      meta: {
+        stats: stats.length > 0 ? stats : (m.meta?.stats ?? []),
+        features: features.length > 0 ? features : (m.meta?.features ?? []),
+      },
+      weekCount,
+      weeks: [],
+    };
+  });
 }
 
 export async function getModule(id: string): Promise<AdminModule | null> {
