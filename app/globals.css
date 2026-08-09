@@ -41,13 +41,112 @@ body {
   min-height: 100vh;
 }
 
+/* ---------- Navbar ---------- */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(28, 28, 32, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.navbar-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 3vw, 32px);
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: clamp(16px, 3vw, 32px);
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.navbar-brand img {
+  border-radius: 6px;
+}
+
+.navbar-title {
+  font-size: 18px;
+  letter-spacing: 0.12em;
+  color: var(--text);
+}
+
+.navbar-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.navbar-link {
+  padding: 6px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.15s ease, background 0.15s ease;
+  white-space: nowrap;
+}
+
+.navbar-link:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.navbar-link.active {
+  color: var(--accent);
+}
+
+.navbar-admin {
+  margin-left: auto;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+}
+
+.navbar-admin:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+@media (max-width: 640px) {
+  .navbar-links {
+    display: none;
+  }
+  .navbar-inner {
+    justify-content: space-between;
+  }
+  .navbar-title {
+    font-size: 15px;
+  }
+  footer {
+    gap: 10px;
+  }
+  .github-link {
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+}
+
 .wrap {
   max-width: 1280px;
   margin: 0 auto;
   padding: clamp(20px, 4vw, 40px) clamp(16px, 3vw, 32px) 56px;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: calc(100vh - 56px);
 }
 
 /* ---------- Header ---------- */
@@ -741,6 +840,23 @@ footer code {
 }
 
 /* ---------- Master login footer link ---------- */
+.footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dim);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.footer-brand:hover {
+  color: var(--text);
+}
+
+.footer-brand img {
+  border-radius: 4px;
+}
+
 .master-link {
   color: var(--dim);
   font-size: 12px;
@@ -757,7 +873,7 @@ footer code {
   max-width: 1100px;
   margin: 0 auto;
   padding: clamp(20px, 4vw, 40px) clamp(16px, 3vw, 32px) 56px;
-  min-height: 100vh;
+  min-height: calc(100vh - 56px);
 }
 
 .admin-wrap header code {

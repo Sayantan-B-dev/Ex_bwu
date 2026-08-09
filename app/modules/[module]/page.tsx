@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import Footer from "@/components/Footer";
 import PrintPlan from "@/components/PrintPlan";
@@ -17,7 +16,7 @@ export default async function ModulePage({ params }: { params: Promise<{ module:
     <div className="wrap module-page">
       {mod.status === "soon" ? (
         <header>
-          <div className="kicker"><Link className="back-home" href="/">← All Modules</Link> · BTech 3rd Semester · {mod.name}</div>
+          <div className="kicker">BTech 3rd Semester · {mod.name}</div>
           <h1>Coming Soon</h1>
           <p>Weekly reports for this module will appear here once uploaded.</p>
         </header>

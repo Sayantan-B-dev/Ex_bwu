@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import NeumorphicDatePicker from "@/components/NeumorphicDatePicker";
 import { useToast } from "@/components/ToastProvider";
 import { signAndUpload } from "@/lib/cloudinary-client";
@@ -92,7 +91,7 @@ export default function AdminDashboard({ modules }: { modules: AdminModule[] }) 
   return (
     <div className="wrap admin-wrap">
       <header>
-        <div className="kicker"><Link className="back-home" href="/">← Site</Link> · Administration</div>
+        <div className="kicker">Administration</div>
         <h1>Module Dashboard</h1>
         <p>Upload weekly PDFs, generate print plans, and manage modules. Filename: <code>Week1_(print 1,3,5,7 pages)_Title.pdf</code> - the numbers in brackets are the pages to print. If nothing is printed, write <code>Week1_(print no pages)_Title.pdf</code>.</p>
       </header>

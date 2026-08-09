@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useToast } from "@/components/ToastProvider";
 import type { WeekRow } from "@/lib/types";
 
@@ -83,7 +82,7 @@ export default function PrintPlan({ weeks, moduleName }: PrintPlanProps) {
     <>
       <header>
         <div className="kicker">
-          <Link className="back-home" href="/">← All Modules</Link> · BTech 3rd Semester · {moduleName}
+          BTech 3rd Semester · {moduleName}
         </div>
         <h1>Weekly Reports - Print Plan</h1>
         <p>Pages to print for the final report, and pages left blank for handwritten work. Click any page to open the PDF in a new tab.</p>
