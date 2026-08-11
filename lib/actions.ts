@@ -6,6 +6,7 @@ import { PDFDocument } from "pdf-lib";
 import { createSession, destroySession, requireAdmin } from "@/lib/session";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { uploadBuffer, deleteByPublicId } from "@/lib/cloudinary";
+import type { WeekLink } from "@/lib/types";
 
 export interface ActionResult {
   ok: boolean;
@@ -178,6 +179,27 @@ export async function updateWeekDate(weekId: string, date: string | null): Promi
       .single();
     if (!week) return { ok: false, error: "Week not found." };
     const { error } = await supabase.from("weeks").update({ done_on: value }).eq("id", weekId);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath(`/modules/${week.module_id}`);
+    revalidatePath("/admin");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+}
+
+export async function updateWeekLinks(weekId: string, links: WeekLink[]): Promise<ActionResult> {
+  if (!(await ensureAdmin())) return { ok: false, error: "Not authorized." };
+  try {
+    const supabase = getSupabaseAdmin();
+    const cleaned = links.filter((l) => l.title.trim() && l.url.trim());
+    const { data: week } = await supabase
+      .from("weeks")
+      .select("id, module_id")
+      .eq("id", weekId)
+      .single();
+    if (!week) return { ok: false, error: "Week not found." };
+    const { error } = await supabase.from("weeks").update({ links: cleaned }).eq("id", weekId);
     if (error) return { ok: false, error: error.message };
     revalidatePath(`/modules/${week.module_id}`);
     revalidatePath("/admin");

@@ -25,6 +25,11 @@ export interface WeekFile {
   sizeBytes: number | null;
 }
 
+export interface WeekLink {
+  title: string;
+  url: string;
+}
+
 export interface WeekRow {
   id: string;
   moduleId: string;
@@ -36,6 +41,7 @@ export interface WeekRow {
   total: number | null;
   hasPlan: boolean;
   files: WeekFile[];
+  links: WeekLink[];
   updatedAt: string;
 }
 

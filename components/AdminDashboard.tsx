@@ -12,9 +12,10 @@ import {
   updateModuleStatus,
   updateModuleMeta,
   updateWeekDate,
+  updateWeekLinks,
   logout,
 } from "@/lib/actions";
-import type { AdminModule, WeekRow } from "@/lib/types";
+import type { AdminModule, WeekLink, WeekRow } from "@/lib/types";
 
 interface Msg {
   ok: boolean;
@@ -169,6 +170,10 @@ export default function AdminDashboard({ modules }: { modules: AdminModule[] }) 
 
                       <div className="action-row">
                         <DocxForm week={w} hasDocx={hasDocx} />
+                      </div>
+
+                      <div className="action-row">
+                        <LinkEditor week={w} />
                       </div>
 
                       <div className="action-row meta-row">
@@ -420,6 +425,66 @@ function ModuleMetaForm({ module: mod }: { module: AdminModule }) {
             <textarea className="admin-input admin-textarea" value={features} onChange={(e) => setFeatures(e.target.value)} rows={4} placeholder={"Page chips - open any page PDF in a new tab\nOpen Full PDF link per report\nMerge print pages into a single PDF download"} />
           </div>
           <button className={loading ? "admin-btn solid loading" : "admin-btn solid"} type="submit" disabled={loading}>Save Module Info</button>
+          {status && <p className={status.ok ? "admin-msg ok" : "admin-msg err"}>{status.text}</p>}
+        </form>
+      )}
+    </div>
+  );
+}
+
+function LinkEditor({ week }: { week: WeekRow }) {
+  const [open, setOpen] = useState(false);
+  const [links, setLinks] = useState<WeekLink[]>(week.links ?? []);
+  const [status, setStatus] = useState<Msg | null>(null);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  function addLink() {
+    setLinks((prev) => [...prev, { title: "", url: "" }]);
+  }
+
+  function removeLink(i: number) {
+    setLinks((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  function updateLink(i: number, field: "title" | "url", value: string) {
+    setLinks((prev) => prev.map((l, idx) => (idx === i ? { ...l, [field]: value } : l)));
+  }
+
+  async function handle(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setStatus(null);
+    const res = await updateWeekLinks(week.id, links);
+    setStatus(res.ok ? { ok: true, text: "Links saved." } : { ok: false, text: res.error ?? "Failed." });
+    if (res.ok) {
+      toast("Links updated");
+    } else {
+      toast(res.error ?? "Save failed", false);
+    }
+    setLoading(false);
+  }
+
+  const linkCount = (week.links ?? []).length;
+
+  return (
+    <div className="admin-meta-wrap">
+      <button className="admin-btn" type="button" onClick={() => setOpen((o) => !o)}>
+        {open ? "Close Links" : `Add Link${linkCount > 0 ? ` (${linkCount})` : ""}`}
+      </button>
+      {open && (
+        <form className="admin-meta-form" onSubmit={handle}>
+          {links.map((l, i) => (
+            <div className="link-row" key={i}>
+              <input className="admin-input" value={l.title} onChange={(e) => updateLink(i, "title", e.target.value)} placeholder="Link title (e.g. GitHub Repo)" />
+              <input className="admin-input" value={l.url} onChange={(e) => updateLink(i, "url", e.target.value)} placeholder="https://github.com/..." />
+              <button className="admin-btn danger" type="button" onClick={() => removeLink(i)}>Remove</button>
+            </div>
+          ))}
+          <div className="link-actions">
+            <button className="admin-btn" type="button" onClick={addLink}>+ Add Link</button>
+            <button className={loading ? "admin-btn solid loading" : "admin-btn solid"} type="submit" disabled={loading}>Save Links</button>
+          </div>
           {status && <p className={status.ok ? "admin-msg ok" : "admin-msg err"}>{status.text}</p>}
         </form>
       )}

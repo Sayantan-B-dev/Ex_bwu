@@ -1,6 +1,6 @@
 import "server-only";
 import { getSupabaseAnon } from "@/lib/supabase/client";
-import type { AdminModule, WeekRow } from "@/lib/types";
+import type { AdminModule, WeekLink, WeekRow } from "@/lib/types";
 
 interface ModuleRowRaw {
   id: string;
@@ -21,6 +21,7 @@ interface WeekRowRaw {
   total_pages: number | null;
   has_plan: boolean;
   done_on: string | null;
+  links: WeekLink[] | null;
   updated_at: string;
   files: FileRowRaw[];
 }
@@ -58,6 +59,7 @@ function mapWeek(row: WeekRowRaw): WeekRow {
     total: row.total_pages,
     hasPlan: row.has_plan,
     doneOn: row.done_on ?? null,
+    links: Array.isArray(row.links) ? row.links.filter((l) => l?.title && l?.url) : [],
     files: (row.files ?? []).map((f) => ({
       id: f.id,
       kind: f.kind,
@@ -136,7 +138,7 @@ export async function getModuleWeeks(moduleId: string): Promise<WeekRow[]> {
   const { data, error } = await supabase
     .from("weeks")
     .select(
-      "id, module_id, week_number, title, print_pages, handwrite_pages, total_pages, has_plan, done_on, updated_at, " +
+      "id, module_id, week_number, title, print_pages, handwrite_pages, total_pages, has_plan, done_on, links, updated_at, " +
         "files(id, kind, page_no, url, original_name, size_bytes)"
     )
     .eq("module_id", moduleId)
