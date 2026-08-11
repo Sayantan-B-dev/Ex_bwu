@@ -163,6 +163,18 @@
       "name": "Direct Cloudinary upload",
       "description": "Browser uploads files directly to Cloudinary using signed URLs (bypasses Next.js 10MB body size limit). Server generates SHA256 signature via /api/admin/cloudinary-sign, client uploads to Cloudinary API, then calls API route to save metadata in Supabase.",
       "files": ["app/api/admin/cloudinary-sign/route.ts", "lib/cloudinary-client.ts"]
+    },
+    {
+      "id": "F25",
+      "name": "Week links",
+      "description": "Admin can add external links (e.g. GitHub repo) per week. Links show on public cards with target=_blank.",
+      "files": ["lib/actions.ts (updateWeekLinks)", "components/AdminDashboard.tsx (LinkEditor)", "components/PrintPlan.tsx", "lib/types.ts (WeekLink)"]
+    },
+    {
+      "id": "F26",
+      "name": "Navbar",
+      "description": "Sticky blur-backed top navigation bar with logo, page links, and admin button. Responsive: links hidden on mobile.",
+      "files": ["components/Navbar.tsx", "app/globals.css", "app/layout.tsx"]
     }
   ],
   "database": {
@@ -173,7 +185,7 @@
         "rls": true
       },
       "weeks": {
-        "columns": ["id uuid PK", "module_id uuid FK→modules", "week_number int", "title text", "print_pages int[]", "total_pages int", "handwrite_pages int[]", "has_plan boolean default false", "done_on date", "created_at timestamptz"],
+        "columns": ["id uuid PK", "module_id uuid FK→modules", "week_number int", "title text", "print_pages int[]", "total_pages int", "handwrite_pages int[]", "has_plan boolean default false", "done_on date", "links jsonb default '[]'", "created_at timestamptz"],
         "constraints": "unique(module_id, week_number)",
         "rls": true
       },
@@ -242,14 +254,16 @@
     { "path": "/admin", "type": "server", "description": "Admin dashboard" }
   ],
   "components": [
-    { "name": "PrintPlan", "file": "components/PrintPlan.tsx", "description": "Public week cards with chips, download, DOCX dropdown" },
-    { "name": "AdminDashboard", "file": "components/AdminDashboard.tsx", "description": "Admin panel with tabs, week list, all management actions" },
+    { "name": "Navbar", "file": "components/Navbar.tsx", "description": "Sticky blur navbar with logo, nav links, admin button. Responsive." },
+    { "name": "PrintPlan", "file": "components/PrintPlan.tsx", "description": "Public week cards with chips, download, DOCX dropdown, links" },
+    { "name": "AdminDashboard", "file": "components/AdminDashboard.tsx", "description": "Admin panel with tabs, week list, all management actions, link editor" },
     { "name": "NeumorphicDatePicker", "file": "components/NeumorphicDatePicker.tsx", "description": "Custom dark neumorphic calendar picker" },
+    { "name": "Footer", "file": "components/Footer.tsx", "description": "Footer with logo, copyright, GitHub link, admin login" },
     { "name": "ToastProvider", "file": "components/ToastProvider.tsx", "description": "Global toast notification context + renderer" }
   ],
   "lib": [
     { "name": "types", "file": "lib/types.ts", "description": "ModuleRow, WeekRow, WeekFile, FileKind, AdminModule, ModuleMeta" },
-    { "name": "actions", "file": "lib/actions.ts", "description": "Server actions: login, logout, splitWeek, deleteWeek, updateWeekTitle, updateModuleStatus, updateModuleMeta, updateWeekDate" },
+    { "name": "actions", "file": "lib/actions.ts", "description": "Server actions: login, logout, splitWeek, deleteWeek, updateWeekTitle, updateModuleStatus, updateModuleMeta, updateWeekDate, updateWeekLinks" },
     { "name": "weeks", "file": "lib/weeks.ts", "description": "DB queries: getPublicModules, getWeeksForModule, getAdminModules" },
     { "name": "weekname", "file": "lib/weekname.ts", "description": "Filename parser for WeekN_(print pages)_Title.pdf" },
     { "name": "session", "file": "lib/session.ts", "description": "jose JWT session create/destroy/requireAdmin" },
@@ -361,6 +375,23 @@
         "Removed addWeek and uploadDocx server actions (replaced by direct upload + API routes)",
         "Cloudinary free plan limit: 10MB per raw file upload (files > 10MB require paid plan)"
       ]
+    },
+    {
+      "date": "2026-08-10",
+      "phase": "6 - Navbar, Logo, Week Links",
+      "changes": [
+        "Added sticky blur navbar (components/Navbar.tsx) with logo, nav links, admin button",
+        "Generated custom logo via Pillow (scripts/make-logo.py) — favicon, icon, logo variants, OG image",
+        "Added favicon + OG metadata to root layout",
+        "Footer updated with logo icon and copyright",
+        "Added week links feature: JSONB 'links' column on weeks table, updateWeekLinks server action",
+        "Admin: LinkEditor component for adding/removing external links per week",
+        "Public cards: links shown as target=_blank chips below card footer",
+        "Removed redundant back-links from admin/module/PrintPlan pages (navbar handles navigation)",
+        "Cleaned up unused Link imports from AdminDashboard, PrintPlan, module page",
+        "Migration: ALTER TABLE public.weeks ADD COLUMN IF NOT EXISTS links jsonb NOT NULL DEFAULT '[]'::jsonb",
+        "Fixed silent query failure: getModuleWeeks SELECT included 'links' column before migration ran, returned []"
+      ]
     }
   ],
   "scripts": {
@@ -400,7 +431,7 @@
     "table": "admins"
   },
   "git": {
-    "commits": 14,
+    "commits": 16,
     "remote": "https://github.com/Sayantan-B-dev/Ex_bwu.git",
     "branch": "main",
     "status": "pushed"

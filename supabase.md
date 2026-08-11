@@ -42,6 +42,7 @@ create table if not exists public.weeks (
   week_number     int not null check (week_number >= 1),
   title           text not null,
   done_on         date,                              -- the day the lab was performed
+  links           jsonb not null default '[]'::jsonb, -- [{title, url}] external links
   print_pages     int[] not null default '{}',
   handwrite_pages int[] not null default '{}',
   total_pages     int,
@@ -148,6 +149,7 @@ If you already ran the script before these fixes (you get the “page files not 
 ```sql
 alter table public.files drop constraint if exists files_week_id_kind_key;
 alter table public.weeks add column if not exists done_on date;
+alter table public.weeks add column if not exists links jsonb not null default '[]'::jsonb;
 ```
 
 Then Re-split the affected weeks from the dashboard.

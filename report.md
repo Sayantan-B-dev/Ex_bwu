@@ -54,6 +54,8 @@
 | F22 | Full PDF proxy route (correct filename) | Done |
 | F23 | Page transition loading spinners (loading.tsx) | Done |
 | F24 | Direct Cloudinary upload (bypasses Next.js body limit) | Done |
+| F25 | Week links (external links per week card) | Done |
+| F26 | Navbar (sticky blur bar, logo, responsive) | Done |
 
 ---
 
@@ -78,6 +80,7 @@ weeks
   handwrite_pages int[]
   has_plan        boolean default false
   done_on         date
+  links           jsonb default '[]'
   created_at      timestamptz
   UNIQUE(module_id, week_number)
 
@@ -142,14 +145,16 @@ app/
     upload-docx/[id]/route.ts # Save DOCX metadata after direct upload
 
 components/
-  PrintPlan.tsx           # Public week cards
-  AdminDashboard.tsx      # Admin panel
+  Navbar.tsx             # Sticky blur navbar
+  PrintPlan.tsx          # Public week cards
+  AdminDashboard.tsx     # Admin panel
   NeumorphicDatePicker.tsx # Calendar picker
   ToastProvider.tsx       # Toast context + renderer
+  Footer.tsx             # Footer with logo + copyright
 
 lib/
-  types.ts               # TypeScript types
-  actions.ts             # Server actions: login, logout, splitWeek, deleteWeek, update*
+  types.ts               # TypeScript types (WeekLink, WeekRow, etc.)
+  actions.ts             # Server actions (split, delete, update*, links)
   weeks.ts               # DB queries
   weekname.ts            # Filename parser
   session.ts             # JWT session
@@ -159,6 +164,7 @@ lib/
   supabase/client.ts     # Browser client
 
 proxy.ts                 # Admin session middleware
+scripts/make-logo.py     # Pillow logo generator
 supabase.md              # SQL schema + migration
 report.json              # Machine-readable report
 report.md                # This file
@@ -214,6 +220,16 @@ report.md                # This file
 - DocxForm: uploads DOCX directly to Cloudinary, then calls API to save metadata
 - Removed addWeek and uploadDocx server actions (replaced by direct upload pattern)
 - Cloudinary free plan limits raw file uploads to 10MB per file
+
+### Phase 6 - Navbar, Logo, Week Links (2026-08-10)
+- Added sticky blur navbar with logo, nav links, admin button (responsive: links hidden on mobile)
+- Generated custom logo via Pillow script (favicon, icon, logo variants, OG image)
+- Footer updated with logo icon and copyright
+- Added week links feature: JSONB `links` column on weeks table
+- Admin: LinkEditor component for adding/removing external links per week
+- Public cards: links shown as target=_blank chips below card footer
+- Removed redundant back-links from admin/module/PrintPlan pages
+- Fixed silent query failure: `getModuleWeeks` SELECT included `links` column before migration ran
 
 ---
 
