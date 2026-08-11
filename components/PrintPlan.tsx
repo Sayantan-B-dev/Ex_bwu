@@ -112,7 +112,6 @@ export default function PrintPlan({ weeks, moduleName }: PrintPlanProps) {
                 );
               })}
             </div>
-            <a className="access-docx see-code" href="https://github.com/Sayantan-B-dev/SM_BtechSyllabus/tree/main/3rdSem/PROJECTS/PYTHON/py" target="_blank" rel="noopener noreferrer">See Code</a>
           </div>
         </div>
       </header>
