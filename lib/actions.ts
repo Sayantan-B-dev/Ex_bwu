@@ -6,6 +6,7 @@ import { PDFDocument } from "pdf-lib";
 import { createSession, destroySession, requireAdmin } from "@/lib/session";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { uploadBuffer, deleteByPublicId } from "@/lib/cloudinary";
+import { parseWeekName, WEEK_NAME_HINT } from "@/lib/weekname";
 import type { WeekLink } from "@/lib/types";
 
 export interface ActionResult {
@@ -201,6 +202,70 @@ export async function updateWeekLinks(weekId: string, links: WeekLink[]): Promis
     if (!week) return { ok: false, error: "Week not found." };
     const { error } = await supabase.from("weeks").update({ links: cleaned }).eq("id", weekId);
     if (error) return { ok: false, error: error.message };
+    revalidatePath(`/modules/${week.module_id}`);
+    revalidatePath("/admin");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+}
+
+export async function resplitWeek(
+  weekId: string,
+  fileUrl: string,
+  fileName: string,
+  cloudinaryPublicId: string,
+  sizeBytes: number
+): Promise<ActionResult> {
+  if (!(await ensureAdmin())) return { ok: false, error: "Not authorized." };
+  try {
+    ensureEnv();
+    const supabase = getSupabaseAdmin();
+
+    const { data: week, error: weekError } = await supabase
+      .from("weeks")
+      .select("id, module_id, week_number")
+      .eq("id", weekId)
+      .single();
+    if (weekError || !week) return { ok: false, error: "Week not found." };
+
+    const parsed = parseWeekName(fileName);
+    if (!parsed) return { ok: false, error: WEEK_NAME_HINT };
+
+    const { data: allFiles } = await supabase
+      .from("files")
+      .select("cloudinary_public_id")
+      .eq("week_id", weekId);
+    for (const f of allFiles ?? []) {
+      await deleteByPublicId(f.cloudinary_public_id);
+    }
+    await supabase.from("files").delete().eq("week_id", weekId);
+
+    await supabase.from("weeks").update({
+      title: parsed.title,
+      print_pages: parsed.printPages,
+      total_pages: 0,
+      handwrite_pages: [],
+      has_plan: false,
+    }).eq("id", weekId);
+
+    await supabase.from("files").insert({
+      week_id: weekId,
+      kind: "full_pdf",
+      page_no: null,
+      cloudinary_public_id: cloudinaryPublicId,
+      url: fileUrl,
+      original_name: fileName,
+      size_bytes: sizeBytes,
+    });
+
+    const resp = await fetch(fileUrl);
+    if (!resp.ok) return { ok: false, error: "Could not download the new PDF from Cloudinary." };
+    const pdfBuffer = new Uint8Array(await resp.arrayBuffer());
+
+    await splitWeekCore(weekId, pdfBuffer, parsed.printPages);
+
+    revalidatePath("/");
     revalidatePath(`/modules/${week.module_id}`);
     revalidatePath("/admin");
     return { ok: true };

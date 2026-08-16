@@ -7,7 +7,7 @@ import ConfirmModal, { confirmAsync } from "@/components/ConfirmModal";
 import { useToast } from "@/components/ToastProvider";
 import { signAndUpload } from "@/lib/cloudinary-client";
 import {
-  splitWeek,
+  resplitWeek,
   deleteWeek,
   updateWeekTitle,
   updateModuleStatus,
@@ -129,7 +129,6 @@ export default function AdminDashboard({ modules }: { modules: AdminModule[] }) 
           ) : (
             <div className="admin-weeklist">
               {mod.weeks.map((w) => {
-                const full = w.files.some((f) => f.kind === "full_pdf");
                 const hasDocx = w.files.some((f) => f.kind === "docx");
                 return (
                   <div className="admin-week" key={w.id}>
@@ -146,17 +145,8 @@ export default function AdminDashboard({ modules }: { modules: AdminModule[] }) 
                     )}
 
                     <div className="admin-week-actions">
-                    <div className="action-row">
-                      {!w.hasPlan ? (
-                        <button className={loadingKey === `split-${w.id}` ? "admin-btn solid loading" : "admin-btn solid"} type="button" disabled={pending || loadingKey !== null} onClick={() => run(splitWeek(w.id), `split-${w.id}`, "Pages split successfully")}>
-                          Split & Save
-                        </button>
-                      ) : (
-                        <button className={loadingKey === `split-${w.id}` ? "admin-btn loading" : "admin-btn"} type="button" disabled={pending || loadingKey !== null} onClick={() => run(splitWeek(w.id), `split-${w.id}`, "Pages re-split successfully")}>
-                          Re-split Pages
-                        </button>
-                      )}
-                        {!full && <span className="admin-empty">Full PDF missing</span>}
+                      <div className="action-row">
+                        <ResplitForm week={w} />
                       </div>
 
                       <div className="action-row">
@@ -295,6 +285,49 @@ function DocxForm({ week, hasDocx }: { week: WeekRow; hasDocx: boolean }) {
     <form className="admin-form" onSubmit={handle}>
       <FileField key={nonce} name="docx" label="Choose DOCX file" accept=".docx" id={`docx-${week.id}`} />
       <button className={loading ? "admin-btn loading" : "admin-btn"} type="submit" disabled={loading}>{loading ? "Uploading to Cloudinary..." : hasDocx ? "Replace DOCX" : "Upload DOCX"}</button>
+    </form>
+  );
+}
+
+function ResplitForm({ week }: { week: WeekRow }) {
+  const [nonce, setNonce] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  async function handle(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const fileInput = form.querySelector<HTMLInputElement>('input[type="file"]');
+    const file = fileInput?.files?.[0];
+    if (!file) { toast("Choose a PDF file.", false); return; }
+
+    setLoading(true);
+    try {
+      const folder = `bwu/${week.moduleId}/Week${week.n}`;
+      const publicId = `report_${Date.now()}`;
+      const upload = await signAndUpload({ folder, publicId, format: "pdf", file });
+      if (!upload.ok || !upload.publicId || !upload.url) {
+        toast(upload.error ?? "Upload failed", false);
+        setLoading(false);
+        return;
+      }
+
+      const res = await resplitWeek(week.id, upload.url, file.name, upload.publicId, file.size);
+      if (res.ok) {
+        toast("Week re-uploaded & re-split");
+        form.reset();
+        setNonce((n) => n + 1);
+      } else {
+        toast(res.error ?? "Re-split failed", false);
+      }
+    } catch {
+      toast("Re-split failed", false);
+    }
+    setLoading(false);
+  }
+  return (
+    <form className="admin-form" onSubmit={handle}>
+      <FileField key={nonce} name="resplit" label="New PDF (replaces current)" accept="application/pdf,.pdf" id={`resplit-${week.id}`} />
+      <button className={loading ? "admin-btn solid loading" : "admin-btn solid"} type="submit" disabled={loading}>{loading ? "Uploading to Cloudinary..." : "Re-upload & Re-split"}</button>
     </form>
   );
 }
