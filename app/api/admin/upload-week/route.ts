@@ -179,7 +179,7 @@ export async function POST(req: NextRequest) {
     revalidatePath("/");
     revalidatePath(`/modules/${moduleId}`);
     revalidatePath("/admin");
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, weekId: week.id });
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });
   }

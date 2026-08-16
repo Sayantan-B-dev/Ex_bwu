@@ -944,6 +944,54 @@ footer code {
   align-items: flex-end;
 }
 
+.add-week-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 12px;
+  padding: 16px;
+  align-items: stretch;
+}
+
+.add-week-fields {
+  display: flex;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.add-week-fields .admin-field {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.add-week-fields .admin-field label {
+  text-align: center;
+}
+
+.add-week-form .admin-btn {
+  align-self: stretch;
+  text-align: center;
+}
+
+.add-week-fields .date-pick-wrap {
+  width: 100%;
+}
+
+.add-week-fields .date-trigger {
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+  justify-content: center;
+}
+
+.add-week-fields .file-btn {
+  width: 100%;
+  box-sizing: border-box;
+  justify-content: center;
+}
+
 .admin-field {
   display: flex;
   flex-direction: column;
@@ -1055,7 +1103,7 @@ footer code {
 .admin-week-actions {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0;
 }
 
 .action-row {
@@ -1063,6 +1111,17 @@ footer code {
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+
+.action-row:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.action-row:last-child {
+  padding-bottom: 0;
 }
 
 .action-row.meta-row {
@@ -1557,6 +1616,10 @@ footer code {
 }
 
 @media (max-width: 480px) {
+  .add-week-fields {
+    flex-direction: column;
+  }
+
   .toast-stack {
     left: 12px;
     right: 12px;

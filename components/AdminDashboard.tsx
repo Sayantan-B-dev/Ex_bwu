@@ -182,11 +182,13 @@ export default function AdminDashboard({ modules }: { modules: AdminModule[] }) 
 function AddWeekForm({ moduleId }: { moduleId: string }) {
   const [nonce, setNonce] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [date, setDate] = useState<string | null>(null);
   const { toast } = useToast();
   async function handle(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
-    const fileInput = form.querySelector<HTMLInputElement>('input[type="file"]');
+    const fileInput = form.querySelector<HTMLInputElement>('input[name="pdf"]');
+    const docxInput = form.querySelector<HTMLInputElement>('input[name="docx"]');
     const file = fileInput?.files?.[0];
     if (!file) { toast("Choose a PDF file.", false); return; }
 
@@ -213,23 +215,66 @@ function AddWeekForm({ moduleId }: { moduleId: string }) {
         }),
       });
       const res = await resp.json();
-      if (res.ok) {
-        toast("Week uploaded & split");
-        form.reset();
-        setNonce((n) => n + 1);
-      } else {
+      if (!res.ok) {
         toast(res.error ?? "Upload failed", false);
+        setLoading(false);
+        return;
       }
+
+      toast("Week uploaded & split");
+
+      const weekId = res.weekId as string | undefined;
+
+      if (weekId && date) {
+        await updateWeekDate(weekId, date);
+      }
+
+      const docxFile = docxInput?.files?.[0];
+      if (weekId && docxFile) {
+        const docxFolder = `bwu/${moduleId}`;
+        const docxPublicId = `report_docx_${Date.now()}`;
+        const docxUpload = await signAndUpload({ folder: docxFolder, publicId: docxPublicId, format: "docx", file: docxFile });
+        if (docxUpload.ok && docxUpload.publicId && docxUpload.url) {
+          await fetch(`/api/admin/upload-docx/${weekId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              cloudinaryPublicId: docxUpload.publicId,
+              cloudinaryUrl: docxUpload.url,
+              originalName: docxFile.name,
+              sizeBytes: docxFile.size,
+            }),
+          });
+          toast("DOCX uploaded");
+        } else {
+          toast("DOCX upload failed (week still saved)", false);
+        }
+      }
+
+      form.reset();
+      setDate(null);
+      setNonce((n) => n + 1);
     } catch {
       toast("Upload failed", false);
     }
     setLoading(false);
   }
   return (
-    <form className="admin-form" onSubmit={handle}>
-      <div className="admin-field">
-        <label htmlFor={`pdf-${moduleId}`}>Weekly PDF (required)</label>
-        <FileField key={nonce} name="pdf" label="Choose Weekly PDF" accept="application/pdf,.pdf" id={`pdf-${moduleId}`} />
+    <form className="admin-form add-week-form" onSubmit={handle}>
+      <div className="add-week-fields">
+        <div className="admin-field">
+          <label htmlFor={`pdf-${moduleId}`}>Weekly PDF (required)</label>
+          <FileField key={`pdf-${nonce}`} name="pdf" label="Choose Weekly PDF" accept="application/pdf,.pdf" id={`pdf-${moduleId}`} />
+        </div>
+        <div className="admin-field">
+          <label>Date (optional)</label>
+          <input type="hidden" name="done" value={date ?? ""} />
+          <NeumorphicDatePicker value={date} onChange={setDate} />
+        </div>
+        <div className="admin-field">
+          <label htmlFor={`docx-new-${moduleId}`}>DOCX (optional)</label>
+          <FileField key={`docx-${nonce}`} name="docx" label="Choose DOCX file" accept=".docx" id={`docx-new-${moduleId}`} />
+        </div>
       </div>
       <button className={loading ? "admin-btn solid loading" : "admin-btn solid"} type="submit" disabled={loading}>{loading ? "Uploading to Cloudinary..." : "Upload & Auto-Split"}</button>
     </form>
