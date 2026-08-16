@@ -18,11 +18,6 @@ import {
 } from "@/lib/actions";
 import type { AdminModule, WeekLink, WeekRow } from "@/lib/types";
 
-interface Msg {
-  ok: boolean;
-  text: string;
-}
-
 function FileField({
   name,
   label,
@@ -59,7 +54,6 @@ function FileField({
 export default function AdminDashboard({ modules }: { modules: AdminModule[] }) {
   const router = useRouter();
   const [active, setActive] = useState(modules[0]?.id ?? "");
-  const [msg, setMsg] = useState<Msg | null>(null);
   const [pending, startTransition] = useTransition();
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const { toast } = useToast();
@@ -67,18 +61,15 @@ export default function AdminDashboard({ modules }: { modules: AdminModule[] }) 
   const mod = modules.find((m) => m.id === active) ?? modules[0];
 
   async function run(fn: Promise<{ ok: boolean; error?: string }>, key?: string, label?: string) {
-    setMsg(null);
     if (key) setLoadingKey(key);
     try {
       const res = await fn;
       if (res.ok) {
         toast(label ?? "Done");
       } else {
-        setMsg({ ok: false, text: res.error ?? "Failed." });
         toast(res.error ?? "Failed", false);
       }
     } catch {
-      setMsg({ ok: false, text: "Something went wrong." });
       toast("Something went wrong", false);
     } finally {
       if (key) setLoadingKey(null);
@@ -121,8 +112,6 @@ export default function AdminDashboard({ modules }: { modules: AdminModule[] }) 
           <button className="admin-btn danger" type="submit">Log Out</button>
         </form>
       </div>
-
-      {msg && <p className={msg.ok ? "admin-msg ok" : "admin-msg err"}>{msg.text}</p>}
 
       {mod && (
         <div className="admin-panel">
@@ -201,7 +190,6 @@ export default function AdminDashboard({ modules }: { modules: AdminModule[] }) 
 }
 
 function AddWeekForm({ moduleId }: { moduleId: string }) {
-  const [status, setStatus] = useState<Msg | null>(null);
   const [nonce, setNonce] = useState(0);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -210,16 +198,14 @@ function AddWeekForm({ moduleId }: { moduleId: string }) {
     const form = e.currentTarget;
     const fileInput = form.querySelector<HTMLInputElement>('input[type="file"]');
     const file = fileInput?.files?.[0];
-    if (!file) { setStatus({ ok: false, text: "Choose a PDF file." }); return; }
+    if (!file) { toast("Choose a PDF file.", false); return; }
 
-    setStatus(null);
     setLoading(true);
     try {
       const folder = `bwu/${moduleId}`;
       const publicId = `report_${Date.now()}`;
       const upload = await signAndUpload({ folder, publicId, format: "pdf", file });
       if (!upload.ok || !upload.publicId || !upload.url) {
-        setStatus({ ok: false, text: upload.error ?? "Upload failed." });
         toast(upload.error ?? "Upload failed", false);
         setLoading(false);
         return;
@@ -237,7 +223,6 @@ function AddWeekForm({ moduleId }: { moduleId: string }) {
         }),
       });
       const res = await resp.json();
-      setStatus(res.ok ? { ok: true, text: "Week uploaded and split." } : { ok: false, text: res.error ?? "Failed." });
       if (res.ok) {
         toast("Week uploaded & split");
         form.reset();
@@ -246,27 +231,22 @@ function AddWeekForm({ moduleId }: { moduleId: string }) {
         toast(res.error ?? "Upload failed", false);
       }
     } catch {
-      setStatus({ ok: false, text: "Something went wrong." });
       toast("Upload failed", false);
     }
     setLoading(false);
   }
   return (
-    <div>
-      <form className="admin-form" onSubmit={handle}>
-        <div className="admin-field">
-          <label htmlFor={`pdf-${moduleId}`}>Weekly PDF (required)</label>
-          <FileField key={nonce} name="pdf" label="Choose Weekly PDF" accept="application/pdf,.pdf" id={`pdf-${moduleId}`} />
-        </div>
-        <button className={loading ? "admin-btn solid loading" : "admin-btn solid"} type="submit" disabled={loading}>{loading ? "Uploading to Cloudinary..." : "Upload & Auto-Split"}</button>
-      </form>
-      {status && <p className={status.ok ? "admin-msg ok" : "admin-msg err"}>{status.text}</p>}
-    </div>
+    <form className="admin-form" onSubmit={handle}>
+      <div className="admin-field">
+        <label htmlFor={`pdf-${moduleId}`}>Weekly PDF (required)</label>
+        <FileField key={nonce} name="pdf" label="Choose Weekly PDF" accept="application/pdf,.pdf" id={`pdf-${moduleId}`} />
+      </div>
+      <button className={loading ? "admin-btn solid loading" : "admin-btn solid"} type="submit" disabled={loading}>{loading ? "Uploading to Cloudinary..." : "Upload & Auto-Split"}</button>
+    </form>
   );
 }
 
 function DocxForm({ week, hasDocx }: { week: WeekRow; hasDocx: boolean }) {
-  const [status, setStatus] = useState<Msg | null>(null);
   const [nonce, setNonce] = useState(0);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -275,16 +255,14 @@ function DocxForm({ week, hasDocx }: { week: WeekRow; hasDocx: boolean }) {
     const form = e.currentTarget;
     const fileInput = form.querySelector<HTMLInputElement>('input[type="file"]');
     const file = fileInput?.files?.[0];
-    if (!file) { setStatus({ ok: false, text: "Choose a DOCX file." }); return; }
+    if (!file) { toast("Choose a DOCX file.", false); return; }
 
-    setStatus(null);
     setLoading(true);
     try {
       const folder = `bwu/${week.moduleId}/Week${week.n}`;
       const publicId = `report_docx_${Date.now()}`;
       const upload = await signAndUpload({ folder, publicId, format: "docx", file });
       if (!upload.ok || !upload.publicId || !upload.url) {
-        setStatus({ ok: false, text: upload.error ?? "Upload failed." });
         toast(upload.error ?? "Upload failed", false);
         setLoading(false);
         return;
@@ -301,7 +279,6 @@ function DocxForm({ week, hasDocx }: { week: WeekRow; hasDocx: boolean }) {
         }),
       });
       const res = await resp.json();
-      setStatus(res.ok ? { ok: true, text: "DOCX saved." } : { ok: false, text: res.error ?? "Failed." });
       if (res.ok) {
         toast("DOCX uploaded");
         form.reset();
@@ -310,32 +287,25 @@ function DocxForm({ week, hasDocx }: { week: WeekRow; hasDocx: boolean }) {
         toast(res.error ?? "Upload failed", false);
       }
     } catch {
-      setStatus({ ok: false, text: "Something went wrong." });
       toast("Upload failed", false);
     }
     setLoading(false);
   }
   return (
-    <div>
-      <form className="admin-form" onSubmit={handle}>
-        <FileField key={nonce} name="docx" label="Choose DOCX file" accept=".docx" id={`docx-${week.id}`} />
-        <button className={loading ? "admin-btn loading" : "admin-btn"} type="submit" disabled={loading}>{loading ? "Uploading to Cloudinary..." : hasDocx ? "Replace DOCX" : "Upload DOCX"}</button>
-      </form>
-      {status && <p className={status.ok ? "admin-msg ok" : "admin-msg err"}>{status.text}</p>}
-    </div>
+    <form className="admin-form" onSubmit={handle}>
+      <FileField key={nonce} name="docx" label="Choose DOCX file" accept=".docx" id={`docx-${week.id}`} />
+      <button className={loading ? "admin-btn loading" : "admin-btn"} type="submit" disabled={loading}>{loading ? "Uploading to Cloudinary..." : hasDocx ? "Replace DOCX" : "Upload DOCX"}</button>
+    </form>
   );
 }
 
 function WeekDateForm({ week }: { week: WeekRow }) {
   const router = useRouter();
   const [date, setDate] = useState<string | null>(week.doneOn ?? null);
-  const [status, setStatus] = useState<Msg | null>(null);
   const { toast } = useToast();
   async function handle(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setStatus(null);
     const res = await updateWeekDate(week.id, new FormData(e.currentTarget).get("done") as string | null);
-    setStatus(res.ok ? { ok: true, text: "Date saved." } : { ok: false, text: res.error ?? "Failed." });
     if (res.ok) {
       toast("Date saved");
       router.refresh();
@@ -344,26 +314,20 @@ function WeekDateForm({ week }: { week: WeekRow }) {
     }
   }
   return (
-    <div>
-      <form className="admin-form" onSubmit={handle}>
-        <input type="hidden" name="done" value={date ?? ""} />
-        <NeumorphicDatePicker value={date} onChange={setDate} />
-        <button className="admin-btn" type="submit">Save Date</button>
-      </form>
-      {status && <p className={status.ok ? "admin-msg ok" : "admin-msg err"}>{status.text}</p>}
-    </div>
+    <form className="admin-form" onSubmit={handle}>
+      <input type="hidden" name="done" value={date ?? ""} />
+      <NeumorphicDatePicker value={date} onChange={setDate} />
+      <button className="admin-btn" type="submit">Save Date</button>
+    </form>
   );
 }
 
 function TitleForm({ week, onDone }: { week: WeekRow; onDone: (r: { ok: boolean; error?: string }) => void }) {
   const [title, setTitle] = useState(week.title);
-  const [status, setStatus] = useState<Msg | null>(null);
   const { toast } = useToast();
   async function handle(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setStatus(null);
     const res = await updateWeekTitle(week.id, title);
-    setStatus(res.ok ? { ok: true, text: "Title saved." } : { ok: false, text: res.error ?? "Failed." });
     if (res.ok) {
       toast("Title updated");
     } else {
@@ -372,13 +336,10 @@ function TitleForm({ week, onDone }: { week: WeekRow; onDone: (r: { ok: boolean;
     onDone(res);
   }
   return (
-    <div>
-      <form className="admin-form" onSubmit={handle}>
-        <input className="admin-input" value={title} onChange={(e) => setTitle(e.target.value)} aria-label={`Week ${week.n} title`} />
-        <button className="admin-btn" type="submit">Save Title</button>
-      </form>
-      {status && <p className={status.ok ? "admin-msg ok" : "admin-msg err"}>{status.text}</p>}
-    </div>
+    <form className="admin-form" onSubmit={handle}>
+      <input className="admin-input" value={title} onChange={(e) => setTitle(e.target.value)} aria-label={`Week ${week.n} title`} />
+      <button className="admin-btn" type="submit">Save Title</button>
+    </form>
   );
 }
 
@@ -387,18 +348,15 @@ function ModuleMetaForm({ module: mod }: { module: AdminModule }) {
   const [tagline, setTagline] = useState(mod.tagline ?? "");
   const [stats, setStats] = useState(mod.meta.stats.join(", "));
   const [features, setFeatures] = useState(mod.meta.features.join("\n"));
-  const [status, setStatus] = useState<Msg | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   async function handle(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    setStatus(null);
     const statsArr = stats.split(",").map((s) => s.trim()).filter(Boolean);
     const featuresArr = features.split("\n").map((f) => f.trim()).filter(Boolean);
     const res = await updateModuleMeta(mod.id, tagline, statsArr, featuresArr);
-    setStatus(res.ok ? { ok: true, text: "Module info saved." } : { ok: false, text: res.error ?? "Failed." });
     if (res.ok) {
       toast("Module info updated");
     } else {
@@ -427,7 +385,6 @@ function ModuleMetaForm({ module: mod }: { module: AdminModule }) {
             <textarea className="admin-input admin-textarea" value={features} onChange={(e) => setFeatures(e.target.value)} rows={4} placeholder={"Page chips - open any page PDF in a new tab\nOpen Full PDF link per report\nMerge print pages into a single PDF download"} />
           </div>
           <button className={loading ? "admin-btn solid loading" : "admin-btn solid"} type="submit" disabled={loading}>Save Module Info</button>
-          {status && <p className={status.ok ? "admin-msg ok" : "admin-msg err"}>{status.text}</p>}
         </form>
       )}
     </div>
@@ -437,7 +394,6 @@ function ModuleMetaForm({ module: mod }: { module: AdminModule }) {
 function LinkEditor({ week }: { week: WeekRow }) {
   const [open, setOpen] = useState(false);
   const [links, setLinks] = useState<WeekLink[]>(week.links ?? []);
-  const [status, setStatus] = useState<Msg | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -456,9 +412,7 @@ function LinkEditor({ week }: { week: WeekRow }) {
   async function handle(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setStatus(null);
     const res = await updateWeekLinks(week.id, links);
-    setStatus(res.ok ? { ok: true, text: "Links saved." } : { ok: false, text: res.error ?? "Failed." });
     if (res.ok) {
       toast("Links updated");
     } else {
@@ -487,7 +441,6 @@ function LinkEditor({ week }: { week: WeekRow }) {
             <button className="admin-btn" type="button" onClick={addLink}>+ Add Link</button>
             <button className={loading ? "admin-btn solid loading" : "admin-btn solid"} type="submit" disabled={loading}>Save Links</button>
           </div>
-          {status && <p className={status.ok ? "admin-msg ok" : "admin-msg err"}>{status.text}</p>}
         </form>
       )}
     </div>
