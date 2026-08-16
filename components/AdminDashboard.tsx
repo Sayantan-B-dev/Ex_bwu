@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import NeumorphicDatePicker from "@/components/NeumorphicDatePicker";
+import ConfirmModal, { confirmAsync } from "@/components/ConfirmModal";
 import { useToast } from "@/components/ToastProvider";
 import { signAndUpload } from "@/lib/cloudinary-client";
 import {
@@ -91,6 +92,7 @@ export default function AdminDashboard({ modules }: { modules: AdminModule[] }) 
 
   return (
     <div className="wrap admin-wrap">
+      <ConfirmModal />
       <header>
         <div className="kicker">Administration</div>
         <h1>Module Dashboard</h1>
@@ -182,7 +184,7 @@ export default function AdminDashboard({ modules }: { modules: AdminModule[] }) 
                       </div>
 
                       <div className="action-row danger-row">
-                        <button className={loadingKey === `del-${w.id}` ? "admin-btn danger loading" : "admin-btn danger"} type="button" disabled={pending || loadingKey !== null} onClick={() => { if (confirm(`Delete Week ${w.n}?`)) run(deleteWeek(w.id), `del-${w.id}`, `Week ${w.n} deleted`); }}>
+                        <button className={loadingKey === `del-${w.id}` ? "admin-btn danger loading" : "admin-btn danger"} type="button" disabled={pending || loadingKey !== null} onClick={async () => { if (await confirmAsync(`Delete Week ${w.n}?`)) run(deleteWeek(w.id), `del-${w.id}`, `Week ${w.n} deleted`); }}>
                           Delete Week
                         </button>
                       </div>
