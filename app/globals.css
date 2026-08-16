@@ -1173,10 +1173,36 @@ footer code {
   box-shadow: var(--inset);
 }
 
+.admin-meta-form .admin-input {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+
 .admin-textarea {
   resize: vertical;
   min-height: 80px;
   line-height: 1.5;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.admin-textarea::-webkit-scrollbar {
+  width: 6px;
+}
+
+.admin-textarea::-webkit-scrollbar-track {
+  background: var(--bg);
+  border-radius: 3px;
+}
+
+.admin-textarea::-webkit-scrollbar-thumb {
+  background: var(--dim);
+  border-radius: 3px;
+}
+
+.admin-textarea::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
 }
 
 /* ---------- Link editor (admin) ---------- */
