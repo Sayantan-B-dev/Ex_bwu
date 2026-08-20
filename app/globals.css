@@ -1044,6 +1044,84 @@ footer code {
   max-width: 280px;
 }
 
+.admin-login-card .admin-form {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.admin-login-card .admin-form .admin-input,
+.admin-login-card .pin-wrap {
+  width: 320px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.pin-wrap {
+  position: relative;
+  width: 320px;
+  max-width: 100%;
+}
+
+.pin-wrap .pin-input {
+  width: 100%;
+  max-width: none;
+  padding-right: 46px;
+  box-sizing: border-box;
+}
+
+.pin-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--dim);
+  cursor: pointer;
+  box-shadow: var(--raise-sm);
+  transition: color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pin-toggle:hover {
+  color: var(--muted);
+}
+
+.pin-toggle:active {
+  box-shadow: var(--inset-sm);
+}
+
+.pin-toggle.shown {
+  color: var(--accent);
+}
+
+.pin-eye,
+.pin-eye-off {
+  position: absolute;
+  transition: transform 0.35s ease, opacity 0.35s ease;
+}
+
+.pin-eye-off {
+  transform: rotate(-40deg) scale(0.6);
+  opacity: 0;
+}
+
+.pin-toggle.shown .pin-eye {
+  transform: rotate(40deg) scale(0.6);
+  opacity: 0;
+}
+
+.pin-toggle.shown .pin-eye-off {
+  transform: rotate(0deg) scale(1);
+  opacity: 1;
+}
+
 .admin-btn {
   background: var(--surface);
   color: var(--accent);
