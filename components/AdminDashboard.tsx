@@ -30,6 +30,27 @@ function FileField({
   id: string;
 }) {
   const [fileName, setFileName] = useState("");
+  const [dragging, setDragging] = useState(false);
+
+  function setFile(file: File | undefined) {
+    setFileName(file?.name ?? "");
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLLabelElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    const input = document.getElementById(id) as HTMLInputElement | null;
+    if (!input) return;
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    setFile(file);
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
   return (
     <div className="admin-field">
       <input
@@ -40,11 +61,25 @@ function FileField({
         accept={accept}
         required
         onChange={(e) => {
-          setFileName(e.currentTarget.files?.[0]?.name ?? "");
+          setFile(e.currentTarget.files?.[0]);
         }}
       />
-      <label className="file-btn" htmlFor={id}>
-        {label}
+      <label
+        className={dragging ? "file-btn drop-hover" : "file-btn"}
+        htmlFor={id}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setDragging(true);
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setDragging(false);
+        }}
+        onDrop={handleDrop}
+      >
+        <span className="file-label">{label}</span>
         {fileName && <span className="file-name">{fileName}</span>}
       </label>
     </div>
@@ -87,7 +122,7 @@ export default function AdminDashboard({ modules }: { modules: AdminModule[] }) 
       <header>
         <div className="kicker">Administration</div>
         <h1>Module Dashboard</h1>
-        <p>Upload weekly PDFs, generate print plans, and manage modules. Filename: <code>Week1_(print 1,3,5,7 pages)_Title.pdf</code> - the numbers in brackets are the pages to print. If nothing is printed, write <code>Week1_(print no pages)_Title.pdf</code>.</p>
+        <p>Upload weekly PDFs, generate print plans, and manage modules. Filename: <code>Week1_(print 1,3,5,7 pages)_Title.pdf</code> - the numbers in brackets are the pages to print. If nothing is printed, write <code>Week1_(print no pages)_Title.pdf</code>. Tip: you can drag &amp; drop files into any upload field.</p>
       </header>
 
       <div className="admin-top">

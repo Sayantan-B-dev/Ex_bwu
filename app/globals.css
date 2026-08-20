@@ -1324,8 +1324,17 @@ footer code {
   color: var(--text);
 }
 
+.file-btn.drop-hover {
+  color: var(--green);
+  box-shadow: var(--inset-sm), 0 0 0 2px var(--green);
+}
+
 .file-btn:active {
   box-shadow: var(--inset-sm);
+}
+
+.file-label {
+  flex-shrink: 0;
 }
 
 .file-name {
